@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  --font-heading: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+
+  --color-brand-bg: #FFFFFF;
+  --color-brand-text: #000000;
+  --color-brand-muted: #555555;
+  --color-brand-border: #EEEEEE;
+  --color-brand-accent: #000000;
+  --color-brand-surface: #F9F9F9;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-brand-bg);
+  color: var(--color-brand-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.03em;
+  /* Very tight letter spacing as per nobl.io */
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+p {
+  line-height: 1.6;
+}
+
+::selection {
+  background-color: var(--color-brand-text);
+  color: var(--color-brand-bg);
+}
+
+.max-w-screen-xl {
+  max-width: 1280px;
+}

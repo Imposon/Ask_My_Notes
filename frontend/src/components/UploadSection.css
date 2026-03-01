@@ -1,0 +1,73 @@
+.upload-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: 100%;
+}
+
+.upload-header h3 {
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+.upload-subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.dropzone {
+    flex-grow: 1;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+.dropzone:hover {
+    background: rgba(31, 166, 243, 0.05);
+    border-color: rgba(31, 166, 243, 0.4);
+}
+
+.upload-icon {
+    color: var(--accent-normal);
+    opacity: 0.8;
+    transition: transform 0.2s;
+}
+
+.dropzone:hover .upload-icon {
+    transform: translateY(-4px);
+    opacity: 1;
+}
+
+.dropzone p {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main);
+}
+
+.upload-actions {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.browse-btn {
+    background: none;
+    border: none;
+    color: var(--accent-normal);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: underline;
+    padding: 0 4px;
+}
+
+.browse-btn:hover {
+    color: #fff;
+}

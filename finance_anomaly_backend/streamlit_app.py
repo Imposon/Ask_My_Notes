@@ -229,6 +229,48 @@ if "transactions" not in st.session_state:
 
 
 
+if not st.session_state.user_id:
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; font-weight: 900; color: #6366f1; font-size: 4rem; margin-bottom: 0px;'>VORTEX</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: rgba(255,255,255,0.5); font-size: 1.2rem; margin-top: 0px; letter-spacing: 2px;'>AI ANOMALY DETECTOR</p>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 1.2, 1])
+    with col2:
+        st.markdown("<div style='background: rgba(255,255,255,0.02); padding: 40px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 10px 30px rgba(0,0,0,0.5);'>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center; margin-bottom: 5px;'>Secure Login</h3>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: gray; font-size: 0.9rem; margin-bottom: 25px;'>Sign in or create an account to continue</p>", unsafe_allow_html=True)
+        
+        backend_ok = check_backend()
+        
+        name = st.text_input("Full Name", placeholder="e.g. John Doe")
+        email = st.text_input("Email Address", placeholder="e.g. john@example.com")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Access Dashboard", use_container_width=True, disabled=not backend_ok):
+            if name and email:
+                with st.spinner("Authenticating..."):
+                    result, err = api_post("/users", json_body={"name": name, "email": email})
+                if err:
+                    st.error(err)
+                else:
+                    st.session_state.user_id = result["id"]
+                    st.session_state.user_name = result["name"]
+                    st.success("Access Granted! Redirecting...")
+                    time.sleep(0.5)
+                    st.rerun()
+            else:
+                st.warning("All fields are required to continue.")
+                
+        if not backend_ok:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.error("System Offline - Backend is not running on port 8000")
+            
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    st.stop()
+
+
 with st.sidebar:
     st.markdown("<h1 style='text-align: center; font-weight: 800; color: #6366f1; margin-bottom: 0px;'>VORTEX</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-top: 0px;'>AI ANOMALY DETECTOR</p>", unsafe_allow_html=True)
@@ -252,31 +294,14 @@ with st.sidebar:
     st.markdown("<br><br>", unsafe_allow_html=True)
 
     st.markdown("<p style='color: rgba(255,255,255,0.4); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;'>AUTHENTICATION</p>", unsafe_allow_html=True)
-    if st.session_state.user_id:
-        st.markdown(f"<div style='background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);'><p style='margin:0; font-size: 0.85rem; color: rgba(255,255,255,0.8);'>User: <b>{st.session_state.user_name}</b></p><p style='margin:0; font-size: 0.6rem; color: rgba(255,255,255,0.4);'>ID: {st.session_state.user_id[:12]}...</p></div>", unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button(" Log Out", use_container_width=True):
-            st.session_state.user_id = None
-            st.session_state.user_name = None
-            st.session_state.analysis_result = None
-            st.session_state.transactions = None
-            st.rerun()
-    else:
-        with st.expander(" Create / Multi-User Login", expanded=True):
-            name = st.text_input("Full Name", placeholder="user")
-            email = st.text_input("User Email", placeholder="your@email.com")
-            if st.button("Access Dashboard", use_container_width=True, disabled=not backend_ok):
-                if name and email:
-                    result, err = api_post("/users", json_body={"name": name, "email": email})
-                    if err:
-                        st.error(err)
-                    else:
-                        st.session_state.user_id = result["id"]
-                        st.session_state.user_name = result["name"]
-                        st.success("Access Granted")
-                        st.rerun()
-                else:
-                    st.warning("All fields required.")
+    st.markdown(f"<div style='background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);'><p style='margin:0; font-size: 0.85rem; color: rgba(255,255,255,0.8);'>User: <b>{st.session_state.user_name}</b></p><p style='margin:0; font-size: 0.6rem; color: rgba(255,255,255,0.4);'>ID: {st.session_state.user_id[:12]}...</p></div>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button(" Log Out", use_container_width=True):
+        st.session_state.user_id = None
+        st.session_state.user_name = None
+        st.session_state.analysis_result = None
+        st.session_state.transactions = None
+        st.rerun()
 
 
 

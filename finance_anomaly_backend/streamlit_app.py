@@ -22,7 +22,6 @@ import streamlit as st
 API_BASE = "http://127.0.0.1:8000"
 st.set_page_config(
     page_title="Vortex Finance | AI Anomaly Detector",
-    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded",
 )

@@ -18,17 +18,15 @@ import pandas as pd
 import requests
 import streamlit as st
 
-# ── Configuration ─────────────────────────────────────────────────────────────
 
 API_BASE = "http://127.0.0.1:8000"
 st.set_page_config(
     page_title="Vortex Finance | AI Anomaly Detector",
-    page_icon="🔮",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS for Professional Dark Theme & Animations
 st.markdown("""
     <style>
     /* Google Font Import */
@@ -156,7 +154,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def api_get(path: str, params: dict = None):
     try:
@@ -205,11 +202,11 @@ def check_backend() -> bool:
 
 def risk_color(score: float) -> str:
     if score >= 75:
-        return "🔴"
+        return ""
     elif score >= 45:
-        return "🟠"
+        return ""
     else:
-        return "🟢"
+        return ""
 
 
 def risk_label(score: float) -> str:
@@ -221,7 +218,6 @@ def risk_label(score: float) -> str:
         return "LOW RISK"
 
 
-# ── Session State Init ─────────────────────────────────────────────────────────
 
 if "user_id" not in st.session_state:
     st.session_state.user_id = None
@@ -233,45 +229,41 @@ if "transactions" not in st.session_state:
     st.session_state.transactions = None
 
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
 
 with st.sidebar:
     st.markdown("<h1 style='text-align: center; font-weight: 800; color: #6366f1; margin-bottom: 0px;'>VORTEX</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-top: 0px;'>AI ANOMALY DETECTOR</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Backend status
     backend_ok = check_backend()
     if backend_ok:
-        st.markdown("<div style='background: rgba(0,255,100,0.1); border: 1px solid rgba(0,255,100,0.2); padding: 10px; border-radius: 8px; color: #00ff66; text-align: center; font-size: 0.85rem; font-weight: 600;'>● System Online</div>", unsafe_allow_html=True)
+        st.markdown("<div style='background: rgba(0,255,100,0.1); border: 1px solid rgba(0,255,100,0.2); padding: 10px; border-radius: 8px; color: #00ff66; text-align: center; font-size: 0.85rem; font-weight: 600;'> System Online</div>", unsafe_allow_html=True)
     else:
-        st.markdown("<div style='background: rgba(255,50,50,0.1); border: 1px solid rgba(255,50,50,0.2); padding: 10px; border-radius: 8px; color: #ff3232; text-align: center; font-size: 0.85rem; font-weight: 600;'>○ System Offline</div>", unsafe_allow_html=True)
+        st.markdown("<div style='background: rgba(255,50,50,0.1); border: 1px solid rgba(255,50,50,0.2); padding: 10px; border-radius: 8px; color: #ff3232; text-align: center; font-size: 0.85rem; font-weight: 600;'> System Offline</div>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Navigation
     st.markdown("<p style='color: rgba(255,255,255,0.4); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;'>NAVIGATE</p>", unsafe_allow_html=True)
     page = st.radio(
         "Navigation",
-        ["🏠 Dashboard", "📤 Upload Statement", "🧠 Run Analysis", "📋 Transactions", "ℹ️ About"],
+        [" Dashboard", " Upload Statement", " Run Analysis", " Transactions", " About"],
         label_visibility="collapsed",
     )
 
     st.markdown("<br><br>", unsafe_allow_html=True)
 
-    # User section
     st.markdown("<p style='color: rgba(255,255,255,0.4); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;'>AUTHENTICATION</p>", unsafe_allow_html=True)
     if st.session_state.user_id:
         st.markdown(f"<div style='background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);'><p style='margin:0; font-size: 0.85rem; color: rgba(255,255,255,0.8);'>User: <b>{st.session_state.user_name}</b></p><p style='margin:0; font-size: 0.6rem; color: rgba(255,255,255,0.4);'>ID: {st.session_state.user_id[:12]}...</p></div>", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🚪 Log Out", use_container_width=True):
+        if st.button(" Log Out", use_container_width=True):
             st.session_state.user_id = None
             st.session_state.user_name = None
             st.session_state.analysis_result = None
             st.session_state.transactions = None
             st.rerun()
     else:
-        with st.expander("👤 Create / Multi-User Login", expanded=True):
+        with st.expander(" Create / Multi-User Login", expanded=True):
             name = st.text_input("Full Name", placeholder="user")
             email = st.text_input("User Email", placeholder="your@email.com")
             if st.button("Access Dashboard", use_container_width=True, disabled=not backend_ok):
@@ -288,10 +280,8 @@ with st.sidebar:
                     st.warning("All fields required.")
 
 
-# ── Page Router ───────────────────────────────────────────────────────────────
 
-# ── 1. Dashboard ─────────────────────────────────────────────────────────────
-if page == "🏠 Dashboard":
+if page == " Dashboard":
     st.markdown('<h1 class="main-title">Vortex Finance</h1>', unsafe_allow_html=True)
     st.markdown(
         """
@@ -304,19 +294,18 @@ if page == "🏠 Dashboard":
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.info("**Step 1**\n\n👤 Create a user profile in the sidebar")
+        st.info("**Step 1**\n\n Create a user profile in the sidebar")
     with col2:
-        st.info("**Step 2**\n\n📤 Upload your bank statement (CSV or PDF)")
+        st.info("**Step 2**\n\n Upload your bank statement (CSV or PDF)")
     with col3:
-        st.info("**Step 3**\n\n🧠 Run anomaly analysis and review results")
+        st.info("**Step 3**\n\n Run anomaly analysis and review results")
 
     st.markdown("---")
 
-    # Show stats if user is logged in and data exists
     if st.session_state.user_id and st.session_state.transactions:
         df = pd.DataFrame(st.session_state.transactions)
 
-        st.subheader(f"📊 Overview for {st.session_state.user_name}")
+        st.subheader(f" Overview for {st.session_state.user_name}")
 
         m1, m2, m3, m4 = st.columns(4)
         total = len(df)
@@ -331,12 +320,11 @@ if page == "🏠 Dashboard":
 
         st.markdown("---")
 
-        # Category breakdown
         if "category" in df.columns:
             col_left, col_right = st.columns(2)
 
             with col_left:
-                st.subheader("💸 Spending by Category")
+                st.subheader(" Spending by Category")
                 cat_spend = df.groupby("category")["amount"].sum().sort_values(ascending=False)
                 fig, ax = plt.subplots(figsize=(6, 4))
                 colors = plt.cm.Set3(np.linspace(0, 1, len(cat_spend)))
@@ -351,7 +339,7 @@ if page == "🏠 Dashboard":
                 plt.close()
 
             with col_right:
-                st.subheader("🕐 Spending by Hour")
+                st.subheader(" Spending by Hour")
                 if "hour" in df.columns:
                     hourly = df.groupby("hour")["amount"].sum()
                     fig2, ax2 = plt.subplots(figsize=(6, 4))
@@ -363,16 +351,16 @@ if page == "🏠 Dashboard":
                     st.pyplot(fig2)
                     plt.close()
     else:
-        st.markdown("### 🚀 How It Works")
+        st.markdown("###  How It Works")
         col_a, col_b = st.columns(2)
         with col_a:
             st.markdown("""
-            **🔬 Detection Methods**
+            ** Detection Methods**
             - **Statistical Scoring**: Compares each transaction against your personal spending baseline
             - **Isolation Forest ML**: Spots multivariate outliers in amount, timing, and frequency
             - **Hybrid Score**: `0.6 × ML + 0.4 × Statistical` → Risk Score (0–100)
 
-            **📊 Features Analyzed**
+            ** Features Analyzed**
             - Transaction amount vs. your category average
             - Time of day (unusual hours flagged)
             - New merchants you've never spent at
@@ -381,35 +369,34 @@ if page == "🏠 Dashboard":
             """)
         with col_b:
             st.markdown("""
-            **📁 Supported Formats**
+            ** Supported Formats**
             - `.csv` files with `date`, `description`, `amount` columns
             - `.pdf` bank statements (table extraction + regex fallback)
 
-            **🏷️ Auto-Categories**
+            ** Auto-Categories**
             Food · Transport · Shopping · Subscription · Housing · Entertainment · Bills · Transfer · Others
 
-            **⚠️ Risk Levels**
-            - 🔴 **≥75** — High Risk
-            - 🟠 **45–74** — Medium Risk
-            - 🟢 **<45** — Normal
+            ** Risk Levels**
+            -  **≥75** — High Risk
+            -  **45–74** — Medium Risk
+            -  **<45** — Normal
             """)
 
-# ── 2. Upload Statement ────────────────────────────────────────────────────────
-elif page == "📤 Upload Statement":
-    st.title("📤 Upload Bank Statement")
+elif page == " Upload Statement":
+    st.title(" Upload Bank Statement")
 
     if not st.session_state.user_id:
-        st.warning("⚠️ Please create or login with a user profile in the sidebar first.")
+        st.warning(" Please create or login with a user profile in the sidebar first.")
         st.stop()
 
     if not backend_ok:
-        st.error("❌ Backend is not running. Please start the FastAPI server.")
+        st.error(" Backend is not running. Please start the FastAPI server.")
         st.stop()
 
     st.markdown(f"Uploading for user: **{st.session_state.user_name}**")
     st.markdown("---")
 
-    tab_csv, tab_pdf, tab_sample = st.tabs(["📊 Upload CSV", "📄 Upload PDF", "🧪 Use Sample Data"])
+    tab_csv, tab_pdf, tab_sample = st.tabs([" Upload CSV", " Upload PDF", " Use Sample Data"])
 
     with tab_csv:
         st.markdown("""
@@ -422,7 +409,7 @@ elif page == "📤 Upload Statement":
         Column aliases supported: `date/Date/DATE`, `description/desc/narration`, `amount/Amount/debit`
         """)
         uploaded_csv = st.file_uploader("Choose CSV file", type=["csv"], key="csv_upload")
-        if uploaded_csv and st.button("📤 Upload CSV", use_container_width=True):
+        if uploaded_csv and st.button(" Upload CSV", use_container_width=True):
             with st.spinner("Parsing and storing transactions..."):
                 data, err = api_post(
                     "/upload",
@@ -432,7 +419,7 @@ elif page == "📤 Upload Statement":
             if err:
                 st.error(f"Upload failed: {err}")
             else:
-                st.success(f"✅ {data['transactions_parsed']} transactions uploaded successfully!")
+                st.success(f" {data['transactions_parsed']} transactions uploaded successfully!")
                 st.json(data)
 
     with tab_pdf:
@@ -444,7 +431,7 @@ elif page == "📤 Upload Statement":
         The parser looks for rows matching: `date  description  amount`
         """)
         uploaded_pdf = st.file_uploader("Choose PDF file", type=["pdf"], key="pdf_upload")
-        if uploaded_pdf and st.button("📤 Upload PDF", use_container_width=True):
+        if uploaded_pdf and st.button(" Upload PDF", use_container_width=True):
             with st.spinner("Extracting and parsing PDF..."):
                 data, err = api_post(
                     "/upload",
@@ -454,7 +441,7 @@ elif page == "📤 Upload Statement":
             if err:
                 st.error(f"Upload failed: {err}")
             else:
-                st.success(f"✅ {data['transactions_parsed']} transactions uploaded!")
+                st.success(f" {data['transactions_parsed']} transactions uploaded!")
                 st.json(data)
 
     with tab_sample:
@@ -494,7 +481,7 @@ elif page == "📤 Upload Statement":
 """
         st.dataframe(pd.read_csv(StringIO(sample_csv)), use_container_width=True, height=250)
 
-        if st.button("🚀 Upload Sample Data", use_container_width=True):
+        if st.button(" Upload Sample Data", use_container_width=True):
             with st.spinner("Uploading sample transactions..."):
                 data, err = api_post(
                     "/upload",
@@ -504,30 +491,28 @@ elif page == "📤 Upload Statement":
             if err:
                 st.error(f"Upload failed: {err}")
             else:
-                st.success(f"✅ {data['transactions_parsed']} sample transactions uploaded! Now go to **Run Analysis**.")
+                st.success(f" {data['transactions_parsed']} sample transactions uploaded! Now go to **Run Analysis**.")
                 st.session_state.transactions = None  # Reset cache
 
 
-# ── 3. Run Analysis ────────────────────────────────────────────────────────────
-elif page == "🧠 Run Analysis":
-    st.title("🧠 Anomaly Detection Analysis")
+elif page == " Run Analysis":
+    st.title(" Anomaly Detection Analysis")
 
     if not st.session_state.user_id:
-        st.warning("⚠️ Please create or login with a user profile in the sidebar first.")
+        st.warning(" Please create or login with a user profile in the sidebar first.")
         st.stop()
 
     if not backend_ok:
-        st.error("❌ Backend is not running. Please start the FastAPI server.")
+        st.error(" Backend is not running. Please start the FastAPI server.")
         st.stop()
 
     st.markdown(f"Running analysis for: **{st.session_state.user_name}**")
     st.markdown("---")
 
-    # Controls
     col_ctrl1, col_ctrl2 = st.columns([2, 1])
     with col_ctrl1:
         threshold = st.slider(
-            "🎚️ Risk Score Threshold",
+            " Risk Score Threshold",
             min_value=0,
             max_value=100,
             value=70,
@@ -537,7 +522,7 @@ elif page == "🧠 Run Analysis":
         st.caption(f"Current: **{threshold}** — {risk_label(threshold)} boundary")
     with col_ctrl2:
         st.markdown("<br>", unsafe_allow_html=True)
-        run_btn = st.button("▶️ Run Analysis", use_container_width=True, type="primary")
+        run_btn = st.button(" Run Analysis", use_container_width=True, type="primary")
 
     if run_btn:
         with st.spinner("Running hybrid anomaly detection pipeline..."):
@@ -561,19 +546,16 @@ elif page == "🧠 Run Analysis":
             st.error(f"Analysis failed: {err}")
         else:
             st.session_state.analysis_result = result
-            # Refresh transactions cache
             txns, _ = api_get(f"/transactions/{st.session_state.user_id}")
             if txns:
                 st.session_state.transactions = txns
-            st.success("✅ Analysis complete!")
+            st.success(" Analysis complete!")
 
-    # Show results
     if st.session_state.analysis_result:
         result = st.session_state.analysis_result
         st.markdown("---")
-        st.subheader("📊 Analysis Results")
+        st.subheader(" Analysis Results")
 
-        # Summary metrics
         m1, m2, m3, m4 = st.columns(4)
         total = result["total_transactions"]
         found = result["anomalies_found"]
@@ -589,12 +571,10 @@ elif page == "🧠 Run Analysis":
         if result["anomalies"]:
             anomalies = result["anomalies"]
 
-            # Sort by risk score descending
             anomalies = sorted(anomalies, key=lambda x: x["risk_score"], reverse=True)
 
-            st.subheader(f"🚨 Flagged Anomalies ({len(anomalies)})")
+            st.subheader(f" Flagged Anomalies ({len(anomalies)})")
 
-            # Risk distribution chart
             scores = [a["risk_score"] for a in anomalies]
             col_chart1, col_chart2 = st.columns(2)
 
@@ -614,9 +594,9 @@ elif page == "🧠 Run Analysis":
 
             with col_chart2:
                 risk_counts = {
-                    "🔴 High (≥75)": sum(1 for s in scores if s >= 75),
-                    "🟠 Medium (45-74)": sum(1 for s in scores if 45 <= s < 75),
-                    "🟢 Low (<45)": sum(1 for s in scores if s < 45),
+                    " High (≥75)": sum(1 for s in scores if s >= 75),
+                    " Medium (45-74)": sum(1 for s in scores if 45 <= s < 75),
+                    " Low (<45)": sum(1 for s in scores if s < 45),
                 }
                 non_zero = {k: v for k, v in risk_counts.items() if v > 0}
                 if non_zero:
@@ -631,10 +611,8 @@ elif page == "🧠 Run Analysis":
 
             st.markdown("---")
 
-            # Anomaly cards
-            st.subheader("🔎 Anomaly Details")
+            st.subheader(" Anomaly Details")
 
-            # Match with transaction data
             txn_map = {}
             if st.session_state.transactions:
                 for t in st.session_state.transactions:
@@ -664,7 +642,6 @@ elif page == "🧠 Run Analysis":
 
                     with col_r:
                         st.markdown(f"**Risk Score:** {score:.1f} / 100")
-                        # Risk bar
                         bar_html = f"""
                         <div style="background:#eee;border-radius:5px;height:18px;width:100%">
                           <div style="background:{'#d62728' if score>=75 else '#ff7f0e' if score>=45 else '#2ca02c'};
@@ -681,30 +658,26 @@ elif page == "🧠 Run Analysis":
             st.success("🎉 No anomalies detected with current threshold. Try lowering the threshold to be more sensitive.")
 
 
-# ── 4. Transactions ────────────────────────────────────────────────────────────
-elif page == "📋 Transactions":
-    st.title("📋 Transaction History")
+elif page == " Transactions":
+    st.title(" Transaction History")
 
     if not st.session_state.user_id:
-        st.warning("⚠️ Please create or login with a user profile in the sidebar first.")
+        st.warning(" Please create or login with a user profile in the sidebar first.")
         st.stop()
 
     if not backend_ok:
-        st.error("❌ Backend is not running. Please start the FastAPI server.")
+        st.error(" Backend is not running. Please start the FastAPI server.")
         st.stop()
 
-    # Fetch controls
     col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
     with col_f1:
-        anomalies_only = st.toggle("🚨 Show Anomalies Only", value=False)
+        anomalies_only = st.toggle(" Show Anomalies Only", value=False)
     with col_f2:
-        if st.button("🔄 Refresh", use_container_width=True):
+        if st.button(" Refresh", use_container_width=True):
             st.session_state.transactions = None
     with col_f3:
-        if st.button("🗑️ Clear Transactions", use_container_width=True):
+        if st.button(" Clear Transactions", use_container_width=True):
             with st.spinner("Clearing history..."):
-                # Call endpoint to delete transactions for this user
-                # We'll need to check if /transactions/{user_id} supports DELETE
                 _, err = api_post(f"/transactions/{st.session_state.user_id}/clear")
                 if err:
                     st.error(f"Failed to clear: {err}")
@@ -714,7 +687,6 @@ elif page == "📋 Transactions":
                     st.success("Transactions cleared!")
                     st.rerun()
 
-    # Fetch transactions
     if not st.session_state.transactions or anomalies_only:
         with st.spinner("Loading transactions..."):
             txns, err = api_get(
@@ -735,7 +707,6 @@ elif page == "📋 Transactions":
 
     df = pd.DataFrame(txns)
 
-    # Summary metrics
     m1, m2, m3 = st.columns(3)
     m1.metric("Total Transactions", f"{len(df):,}")
     if "is_anomaly" in df.columns:
@@ -746,8 +717,7 @@ elif page == "📋 Transactions":
 
     st.markdown("---")
 
-    # Filters
-    with st.expander("🔧 Filters", expanded=False):
+    with st.expander(" Filters", expanded=False):
         f_col1, f_col2, f_col3 = st.columns(3)
         with f_col1:
             if "category" in df.columns:
@@ -757,7 +727,6 @@ elif page == "📋 Transactions":
             if "amount" in df.columns:
                 min_amt = float(df["amount"].min())
                 max_amt = float(df["amount"].max())
-                # Streamlit slider min_value must be strictly less than max_value
                 if min_amt == max_amt:
                     st.info(f"Amount: ₹{min_amt:,.2f}")
                     amt_range = (min_amt, max_amt)
@@ -766,7 +735,6 @@ elif page == "📋 Transactions":
         with f_col3:
             sort_by = st.selectbox("Sort By", ["date", "amount", "anomaly_score", "category"])
 
-    # Apply filters
     disp = df.copy()
     if "category" in df.columns and sel_cat != "All":
         disp = disp[disp["category"] == sel_cat]
@@ -775,7 +743,6 @@ elif page == "📋 Transactions":
     if sort_by in disp.columns:
         disp = disp.sort_values(sort_by, ascending=False)
 
-    # Display columns
     show_cols = ["date", "description", "amount", "category", "merchant", "hour"]
     if "is_anomaly" in disp.columns:
         show_cols += ["is_anomaly", "anomaly_score"]
@@ -783,11 +750,9 @@ elif page == "📋 Transactions":
     show_cols = [c for c in show_cols if c in disp.columns]
     disp_show = disp[show_cols].copy()
 
-    # Format date
     if "date" in disp_show.columns:
         disp_show["date"] = disp_show["date"].astype(str).str[:19]
 
-    # Highlight anomalies
     def highlight_anomaly(row):
         if row.get("is_anomaly", False):
             return ["background-color: #fff0f0"] * len(row)
@@ -801,18 +766,16 @@ elif page == "📋 Transactions":
 
     st.caption(f"Showing {len(disp_show):,} of {len(df):,} transactions. Anomalies highlighted in red.")
 
-    # Download button
     csv_out = disp_show.to_csv(index=False)
     st.download_button(
-        "⬇️ Download as CSV",
+        " Download as CSV",
         data=csv_out,
         file_name=f"transactions_{st.session_state.user_id[:8]}.csv",
         mime="text/csv",
     )
 
-    # Charts
     st.markdown("---")
-    st.subheader("📊 Transaction Insights")
+    st.subheader(" Transaction Insights")
 
     tab1, tab2, tab3 = st.tabs(["Category Breakdown", "Timeline", "Amount Distribution"])
 
@@ -873,18 +836,15 @@ elif page == "📋 Transactions":
             plt.close()
 
 
-# ── 5. About ──────────────────────────────────────────────────────────────────
-elif page == "ℹ️ About":
-    st.title("ℹ️ About This System")
+elif page == " About":
+    st.title(" About This System")
 
     st.markdown("""
-    ## Personal Finance Behavioral Anomaly Detection System
 
     This system answers: **"Is this transaction unusual for THIS user?"**
 
     ---
 
-    ### Architecture
 
     | Layer | Component | Description |
     |-------|-----------|-------------|
@@ -895,7 +855,6 @@ elif page == "ℹ️ About":
 
     ---
 
-    ### Pipeline
 
     ```
     CSV/PDF Upload
@@ -921,7 +880,6 @@ elif page == "ℹ️ About":
 
     ---
 
-    ### Features Engineered
 
     | Feature | Weight | Description |
     |---------|--------|-------------|
@@ -935,15 +893,12 @@ elif page == "ℹ️ About":
 
     ---
 
-    ### Running Locally
 
     ```bash
-    # Terminal 1 — Backend
     cd finance_anomaly_backend
     source .venv/bin/activate
     uvicorn app.main:app --reload --port 8000
 
-    # Terminal 2 — Frontend
     cd finance_anomaly_backend
     source .venv/bin/activate
     streamlit run streamlit_app.py

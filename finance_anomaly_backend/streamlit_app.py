@@ -1004,9 +1004,15 @@ elif page == " Upload Statement":
         if st.button(" Upload Sample Data", use_container_width=True):
             db = get_db()
             try:
-                result = upload_transactions(sample_csv.encode(), "sample.csv", st.session_state.user_id, db)
-                st.success(f" {result['transactions_parsed']} sample transactions uploaded! Now go to **Transactions**.")
-                st.session_state.transactions = None  # Reset cache
+                with st.spinner("Clearing previous transactions and uploading sample data..."):
+                    # Reset previous transactions to 0
+                    clear_result = clear_user_transactions(st.session_state.user_id, db)
+                    st.info(f"Previous transactions cleared: {clear_result['message']}")
+                    
+                    # Upload new sample data
+                    result = upload_transactions(sample_csv.encode(), "sample.csv", st.session_state.user_id, db)
+                    st.success(f" {result['transactions_parsed']} new sample transactions uploaded! Previous data cleared.")
+                    st.session_state.transactions = None  # Reset cache
             finally:
                 db.close()
 
@@ -1023,7 +1029,11 @@ elif page == " Upload Statement":
         if uploaded_pdf and st.button(" Upload PDF", use_container_width=True):
             db = get_db()
             try:
-                with st.spinner("Extracting and parsing PDF..."):
+                with st.spinner("Clearing previous transactions and parsing PDF..."):
+                    # Reset previous transactions to 0
+                    clear_result = clear_user_transactions(st.session_state.user_id, db)
+                    st.info(f"Previous transactions cleared: {clear_result['message']}")
+                    
                     pdf_content = uploaded_pdf.getvalue()
                     
                     # Real PDF parsing for bank statements
@@ -1118,7 +1128,7 @@ elif page == " Upload Statement":
                         pdf_csv_data = "\n".join(csv_lines)
                         
                         result = upload_transactions(pdf_csv_data.encode(), f"{uploaded_pdf.name}_extracted.csv", st.session_state.user_id, db)
-                        st.success(f" Bank statement successfully parsed and {result['transactions_parsed']} transactions uploaded!")
+                        st.success(f" Bank statement successfully parsed and {result['transactions_parsed']} new transactions uploaded! Previous data cleared.")
                         st.info("✅ Real bank statement format detected and processed")
                         
                     except Exception as e:
@@ -1144,8 +1154,14 @@ elif page == " Upload Statement":
         if uploaded_csv and st.button(" Upload CSV", use_container_width=True):
             db = get_db()
             try:
-                result = upload_transactions(uploaded_csv.getvalue(), uploaded_csv.name, st.session_state.user_id, db)
-                st.success(f" {result['transactions_parsed']} transactions uploaded successfully!")
+                with st.spinner("Clearing previous transactions and uploading CSV..."):
+                    # Reset previous transactions to 0
+                    clear_result = clear_user_transactions(st.session_state.user_id, db)
+                    st.info(f"Previous transactions cleared: {clear_result['message']}")
+                    
+                    # Upload new CSV data
+                    result = upload_transactions(uploaded_csv.getvalue(), uploaded_csv.name, st.session_state.user_id, db)
+                    st.success(f" {result['transactions_parsed']} new CSV transactions uploaded! Previous data cleared.")
             except Exception as e:
                 st.error(f"Upload failed: {str(e)}")
             finally:

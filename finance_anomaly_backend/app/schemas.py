@@ -1,13 +1,12 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr
-
+from pydantic import BaseModel, ConfigDict
 
 
 class UserCreate(BaseModel):
     name: str
-    email: EmailStr
+    email: str
 
 
 class UserResponse(BaseModel):

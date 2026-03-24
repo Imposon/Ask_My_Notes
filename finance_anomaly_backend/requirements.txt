@@ -5,6 +5,8 @@ scikit-learn
 pdfplumber
 joblib
 sqlalchemy
+pydantic[email]
+email-validator
 openai
 python-dotenv
 matplotlib

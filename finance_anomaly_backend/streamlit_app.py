@@ -795,6 +795,12 @@ if not st.session_state.user_id:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center; font-weight: 900; color: #6366f1; font-size: 4rem; margin-bottom: 0px;'>VORTEX</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: rgba(255,255,255,0.5); font-size: 1.2rem; margin-top: 0px; letter-spacing: 2px;'>AI ANOMALY DETECTOR</p>", unsafe_allow_html=True)
+    
+    # Dark mode toggle
+    col_left, col_right = st.columns([2, 1])
+    with col_right:
+        dark_mode = st.toggle("🌙 Dark Mode", value=True)
+    
     st.markdown("<br>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1.2, 1])
@@ -1148,11 +1154,11 @@ elif page == " Transactions":
             if transactions_df.empty:
                 st.info("No transactions found.")
             else:
-                # Style the dataframe with black text and red background for anomalies
+                # Style the dataframe with white text for normal and red background for anomalies
                 def highlight_anomalies(row):
                     if row.get('is_anomaly', False):
                         return ['background-color: #ffcccc; color: black'] * len(row)
-                    return ['color: black'] * len(row)
+                    return ['background-color: white; color: black'] * len(row)
                 
                 styled_df = transactions_df.style.apply(highlight_anomalies, axis=1)
                 st.dataframe(styled_df, use_container_width=True)
@@ -1257,6 +1263,49 @@ elif page == " Run Analysis":
                     plt.tight_layout()
                     st.pyplot(fig)
                     plt.close()
+                    
+                    # Add anomaly descriptions in boxes
+                    st.markdown("---")
+                    st.subheader("📋 Anomaly Transaction Details")
+                    
+                    for idx, (_, anomaly) in enumerate(anomalies_df.iterrows()):
+                        risk_score = anomaly['risk_score']
+                        risk_level = "HIGH" if risk_score >= 75 else "MEDIUM" if risk_score >= 45 else "LOW"
+                        risk_color = "#ff4b4b" if risk_score >= 75 else "#ffa500" if risk_score >= 45 else "#00ff66"
+                        
+                        st.markdown(f"""
+                        <div style='background: rgba(255,255,255,0.05); border: 1px solid {risk_color}40; padding: 20px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid {risk_color};'>
+                            <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;'>
+                                <h4 style='margin: 0; color: white;'>{anomaly['description']}</h4>
+                                <span style='background: {risk_color}40; color: {risk_color}; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;'>{risk_level} RISK</span>
+                            </div>
+                            <div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 10px;'>
+                                <div>
+                                    <p style='color: rgba(255,255,255,0.6); margin: 0; font-size: 0.8rem;'>Date</p>
+                                    <p style='color: white; margin: 0; font-weight: 600;'>{anomaly['date'].strftime('%Y-%m-%d %H:%M')}</p>
+                                </div>
+                                <div>
+                                    <p style='color: rgba(255,255,255,0.6); margin: 0; font-size: 0.8rem;'>Amount</p>
+                                    <p style='color: white; margin: 0; font-weight: 600;'>₹{anomaly['amount']:,.2f}</p>
+                                </div>
+                                <div>
+                                    <p style='color: rgba(255,255,255,0.6); margin: 0; font-size: 0.8rem;'>Risk Score</p>
+                                    <p style='color: white; margin: 0; font-weight: 600;'>{risk_score:.1f}/100</p>
+                                </div>
+                            </div>
+                            <div>
+                                <p style='color: rgba(255,255,255,0.6); margin: 0; font-size: 0.8rem;'>Category</p>
+                                <p style='color: white; margin: 0;'>{anomaly['category']}</p>
+                            </div>
+                            <div style='margin-top: 10px;'>
+                                <p style='color: rgba(255,255,255,0.6); margin: 0; font-size: 0.8rem;'>Why Flagged</p>
+                                <p style='color: rgba(255,255,255,0.9); margin: 0; font-size: 0.9rem;'>
+                                    This transaction was flagged due to unusual spending patterns detected by our AI anomaly detection system. 
+                                    The amount and timing deviate significantly from your normal behavior.
+                                </p>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
                 else:
                     st.info("No anomalies detected with the current threshold.")
                 

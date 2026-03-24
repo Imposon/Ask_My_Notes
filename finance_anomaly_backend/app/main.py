@@ -59,9 +59,3 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     return user
-
-
-@app.get("/users/count")
-def get_user_count(db: Session = Depends(get_db)):
-    count = db.query(User).count()
-    return {"count": count}

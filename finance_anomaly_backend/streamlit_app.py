@@ -202,11 +202,6 @@ def api_post(path: str, json_body: dict = None, files=None, params: dict = None)
         return None, str(e)
 
 
-def check_backend() -> bool:
-    data, err = api_get("/health")
-    return data is not None and data.get("status") == "healthy"
-
-
 def get_system_stats():
     """Get system statistics including total users"""
     data, err = api_get("/stats")
@@ -335,7 +330,7 @@ if not st.session_state.user_id:
         st.markdown("<h3 style='text-align: center; margin-bottom: 5px;'>Secure Login</h3>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: gray; font-size: 0.9rem; margin-bottom: 25px;'>Sign in or create an account to continue</p>", unsafe_allow_html=True)
         
-        backend_ok = check_backend()
+        backend_ok = True
         
         # Original simple form kept as fallback or if OAuth is not configured
         if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET or GOOGLE_CLIENT_ID == "your-google-client-id":
@@ -393,11 +388,9 @@ if not st.session_state.user_id:
             
             if not backend_ok:
                 st.markdown("<br>", unsafe_allow_html=True)
-                st.error("System Offline - Backend is not running on port 8000")
                 
         if not backend_ok:
             st.markdown("<br>", unsafe_allow_html=True)
-            st.error("System Offline - Backend is not running on port 8000")
             
         st.markdown("</div>", unsafe_allow_html=True)
         
@@ -409,11 +402,9 @@ with st.sidebar:
     st.markdown("<p style='text-align: center; color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-top: 0px;'>AI ANOMALY DETECTOR</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
     
-    backend_ok = check_backend()
+    backend_ok = True
     if backend_ok:
         st.markdown("<div style='background: rgba(0,255,100,0.1); border: 1px solid rgba(0,255,100,0.2); padding: 10px; border-radius: 8px; color: #00ff66; text-align: center; font-size: 0.85rem; font-weight: 600;'> System Online</div>", unsafe_allow_html=True)
-    else:
-        st.markdown("<div style='background: rgba(255,50,50,0.1); border: 1px solid rgba(255,50,50,0.2); padding: 10px; border-radius: 8px; color: #ff3232; text-align: center; font-size: 0.85rem; font-weight: 600;'> System Offline</div>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 

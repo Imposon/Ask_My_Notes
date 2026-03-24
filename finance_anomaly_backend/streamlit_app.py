@@ -194,10 +194,6 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 
-    else:
-        return "LOW RISK"
-
-
 def risk_label(score: float) -> str:
     if score >= 75:
         return "HIGH RISK"

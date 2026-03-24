@@ -785,13 +785,6 @@ if not st.session_state.user_id:
     finally:
         db.close()
     
-    # Add total users counter in top right
-    st.markdown(f"""
-        <div style='position: fixed; top: 20px; right: 20px; z-index: 999; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); padding: 12px 20px; border-radius: 12px; color: #a5b4fc; font-weight: 600; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3);'>
-            👥 Total Users: {stats.get('total_users', 0)}
-        </div>
-    """, unsafe_allow_html=True)
-    
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center; font-weight: 900; color: #6366f1; font-size: 4rem; margin-bottom: 0px;'>VORTEX</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: rgba(255,255,255,0.5); font-size: 1.2rem; margin-top: 0px; letter-spacing: 2px;'>AI ANOMALY DETECTOR</p>", unsafe_allow_html=True)
@@ -833,6 +826,13 @@ if not st.session_state.user_id:
                 st.warning("All fields are required to continue.")
         
         st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Add total users counter at bottom left
+        st.markdown(f"""
+            <div style='position: fixed; bottom: 20px; left: 20px; z-index: 999; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); padding: 12px 20px; border-radius: 12px; color: #a5b4fc; font-weight: 600; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3);'>
+                👥 Total Users: {stats.get('total_users', 0)}
+            </div>
+            """, unsafe_allow_html=True)
     
     st.stop()
 

@@ -332,68 +332,31 @@ if not st.session_state.user_id:
         
         backend_ok = True
         
-        # Original simple form kept as fallback or if OAuth is not configured
-        if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET or GOOGLE_CLIENT_ID == "your-google-client-id":
-            name = st.text_input("Full Name", placeholder="e.g. John Doe")
-            email = st.text_input("Email Address", placeholder="e.g. john@example.com")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Access Dashboard", use_container_width=True, disabled=not backend_ok):
-                if name and email:
-                    with st.spinner("Authenticating..."):
-                        result, err = api_post("/users", json_body={"name": name, "email": email})
-                        # Increment debug login counter and total users counter
-                        if not err:
-                            api_post("/stats/increment", json_body={"increment_debug": True, "increment_total_users": True})
-                    if err:
-                        st.error(err)
-                    else:
-                        st.session_state.user_id = result["id"]
-                        st.session_state.user_name = result["name"]
-                        st.success("Access Granted! Redirecting...")
-                        time.sleep(0.5)
-                        st.rerun()
-                else:
-                    st.warning("All fields are required to continue.")
-        else:
-            # Google OAuth Button
-            flow = create_google_flow()
-            auth_url, _ = flow.authorization_url(prompt='consent')
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            # Custom styled button to match Google brand but fit existing UI
-            st.markdown(f"""
-                <a href="{auth_url}" target="_self" style="text-decoration: none;">
-                    <button style="
-                        width: 100%;
-                        background: white;
-                        color: #1a1a1a;
-                        border: 1px solid #dadce0;
-                        border-radius: 10px;
-                        font-weight: 600;
-                        padding: 12px 24px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        gap: 12px;
-                        cursor: pointer;
-                        transition: all 0.2s ease;
-                        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-                    ">
-                        <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" width="20px" height="20px">
-                        Sign in with Google
-                    </button>
-                </a>
-            """, unsafe_allow_html=True)
-            
-            if not backend_ok:
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-        if not backend_ok:
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-        st.markdown("</div>", unsafe_allow_html=True)
+        # Original simple form - always use this instead of OAuth
+        name = st.text_input("Full Name", placeholder="e.g. John Doe")
+        email = st.text_input("Email Address", placeholder="e.g. john@example.com")
         
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Access Dashboard", use_container_width=True, disabled=not backend_ok):
+            if name and email:
+                with st.spinner("Authenticating..."):
+                    result, err = api_post("/users", json_body={"name": name, "email": email})
+                    # Increment debug login counter and total users counter
+                    if not err:
+                        api_post("/stats/increment", json_body={"increment_debug": True, "increment_total_users": True})
+                if err:
+                    st.error(err)
+                else:
+                    st.session_state.user_id = result["id"]
+                    st.session_state.user_name = result["name"]
+                    st.success("Access Granted! Redirecting...")
+                    time.sleep(0.5)
+                    st.rerun()
+            else:
+                st.warning("All fields are required to continue.")
+        
+    st.markdown("</div>", unsafe_allow_html=True)
+    
     st.stop()
 
 

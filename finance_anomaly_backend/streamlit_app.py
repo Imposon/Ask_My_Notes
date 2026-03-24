@@ -1063,11 +1063,45 @@ elif page == " Upload Statement":
 elif page == " Transactions":
     st.title(" Your Transactions")
     
+    # Add anomalies toggle
+    col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
+    with col_f1:
+        anomalies_only = st.toggle(" Show Anomalies Only", value=False)
+    with col_f2:
+        if st.button(" Refresh", use_container_width=True):
+            st.session_state.transactions = None
+            st.rerun()
+    with col_f3:
+        if st.button(" Clear Transactions", use_container_width=True):
+            db = get_db()
+            try:
+                result = clear_user_transactions(st.session_state.user_id, db)
+                st.success(result["message"])
+                st.session_state.transactions = None
+                st.session_state.analysis_result = None
+                st.rerun()
+            finally:
+                db.close()
+    
     db = get_db()
     try:
         transactions_df = get_user_transactions(st.session_state.user_id, db)
         if transactions_df is not None and not transactions_df.empty:
-            st.dataframe(transactions_df, use_container_width=True)
+            # Filter anomalies if toggle is on
+            if anomalies_only and 'is_anomaly' in transactions_df.columns:
+                transactions_df = transactions_df[transactions_df['is_anomaly'] == True]
+            
+            if transactions_df.empty:
+                st.info("No transactions found.")
+            else:
+                # Style the dataframe with red background for anomalies
+                def highlight_anomalies(row):
+                    if row.get('is_anomaly', False):
+                        return ['background-color: #ffcccc'] * len(row)
+                    return [''] * len(row)
+                
+                styled_df = transactions_df.style.apply(highlight_anomalies, axis=1)
+                st.dataframe(styled_df, use_container_width=True)
         else:
             st.info("No transactions found. Please upload a bank statement first.")
     finally:

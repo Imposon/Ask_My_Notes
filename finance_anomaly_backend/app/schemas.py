@@ -15,6 +15,8 @@ class UserResponse(BaseModel):
     id: str
     name: str
     email: str
+    google_id: Optional[str] = None
+    picture: Optional[str] = None
     created_at: datetime
 
 

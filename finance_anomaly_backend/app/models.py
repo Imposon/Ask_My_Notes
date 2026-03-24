@@ -31,6 +31,8 @@ class User(Base):
     id = Column(String(36), primary_key=True, default=_new_uuid)
     name = Column(String(128), nullable=False)
     email = Column(String(256), unique=True, nullable=False, index=True)
+    google_id = Column(String(256), unique=True, nullable=True, index=True)
+    picture = Column(String(512), nullable=True)
     created_at = Column(DateTime, default=_utcnow)
 
     transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")

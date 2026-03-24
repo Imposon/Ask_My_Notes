@@ -228,7 +228,7 @@ def risk_label(score: float) -> str:
 # --- Google OAuth Configuration ---
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8501")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://askmynotes-96w2ccwsyucbwolzuixqzq.streamlit.app")
 SCOPES = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid']
 
 def create_google_flow():
@@ -263,19 +263,30 @@ if "code" in st.query_params:
             service = build('oauth2', 'v2', credentials=credentials)
             user_info = service.userinfo().get().execute()
             
-            # Sync with backend
+            # Sync with backend using OAuth endpoint
             name = user_info.get("name")
             email = user_info.get("email")
+            picture = user_info.get("picture")
+            google_id = user_info.get("id")
             
-            result, err = api_post("/users", json_body={"name": name, "email": email})
+            # Use OAuth endpoint for better integration
+            auth_data = {
+                "id_token": google_id,
+                "name": name,
+                "email": email,
+                "picture": picture
+            }
+            
+            result, err = api_post("/auth/google", json_body=auth_data)
             if not err:
-                st.session_state.user_id = result["id"]
-                st.session_state.user_name = result["name"]
+                st.session_state.user_id = result["user"]["id"]
+                st.session_state.user_name = result["user"]["name"]
+                st.session_state.access_token = result["access_token"]
                 # Clear query params to clean up URL
                 st.query_params.clear()
                 st.rerun()
             else:
-                st.error(f"Failed to sync user with backend: {err}")
+                st.error(f"Failed to authenticate with backend: {err}")
         except Exception as e:
             st.error(f"Authentication failed: {str(e)}")
 
@@ -285,6 +296,8 @@ if "user_id" not in st.session_state:
     st.session_state.user_id = None
 if "user_name" not in st.session_state:
     st.session_state.user_name = None
+if "access_token" not in st.session_state:
+    st.session_state.access_token = None
 if "analysis_result" not in st.session_state:
     st.session_state.analysis_result = None
 if "transactions" not in st.session_state:

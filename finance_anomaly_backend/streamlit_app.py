@@ -216,7 +216,8 @@ def get_transactions_by_user_id(user_id: str, db: Session):
     return pd.DataFrame(rows)
 
 def upload_sample_data(user_id: str, db: Session):
-    sample_csv = """date,description,amount
+    try:
+        sample_csv = """date,description,amount
 2025-01-02 10:15:00,Swiggy Food Delivery,450
 2025-01-03 08:30:00,Uber Ride to Office,280
 2025-01-04 14:20:00,Zomato Lunch Order,340
@@ -248,8 +249,7 @@ def upload_sample_data(user_id: str, db: Session):
 2025-01-30 10:45:00,Swiggy Snacks,150
 2025-01-31 20:30:00,Zomato Dinner,720
 """
-    
-    try:
+        
         df = pd.read_csv(StringIO(sample_csv))
         df['date'] = pd.to_datetime(df['date'])
         
@@ -275,7 +275,9 @@ def upload_sample_data(user_id: str, db: Session):
             "message": f"{len(records)} sample transactions uploaded successfully."
         }
     except Exception as e:
-        return {"error": f"Failed to upload sample data: {str(e)}"}
+        import traceback
+        error_details = f"Failed to upload sample data: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        return {"error": error_details}
 
 def clear_user_transactions(user_id: str, db: Session):
     db.query(Transaction).filter(Transaction.user_id == user_id).delete()
@@ -843,17 +845,23 @@ elif page == " Upload Statement":
             with st.spinner("Uploading sample transactions..."):
                 db = get_db()
                 try:
+                    st.write(f"Uploading data for user: {st.session_state.user_id}")
                     result = upload_sample_data(st.session_state.user_id, db)
+                    st.write(f"Upload result: {result}")
                     if "error" in result:
-                        st.error(result["error"])
+                        st.error(f"Upload failed: {result['error']}")
                     else:
                         transactions_df = get_transactions_by_user_id(st.session_state.user_id, db)
+                        st.write(f"Transactions loaded: {len(transactions_df) if transactions_df is not None else 'None'}")
                         if transactions_df is not None and not transactions_df.empty:
                             st.session_state.transactions = transactions_df
                             st.success(result["message"])
                             st.rerun()
                         else:
-                            st.error("Failed to load sample data.")
+                            st.error("Failed to load sample data after upload.")
+                except Exception as e:
+                    st.error(f"Unexpected error: {str(e)}")
+                    st.write(f"Error type: {type(e)}")
                 finally:
                     db.close()
 

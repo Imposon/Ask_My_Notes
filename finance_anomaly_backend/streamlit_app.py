@@ -207,6 +207,14 @@ def check_backend() -> bool:
     return data is not None and data.get("status") == "healthy"
 
 
+def get_system_stats():
+    """Get system statistics including total users"""
+    data, err = api_get("/stats")
+    if not err:
+        return data
+    return {"total_users": 0, "debug_logins": 0}
+
+
 def risk_color(score: float) -> str:
     if score >= 75:
         return ""
@@ -306,6 +314,16 @@ if "transactions" not in st.session_state:
 
 
 if not st.session_state.user_id:
+    # Get system stats for display
+    stats = get_system_stats()
+    
+    # Add total users counter in top right
+    st.markdown(f"""
+        <div style='position: fixed; top: 20px; right: 20px; z-index: 999; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); padding: 12px 20px; border-radius: 12px; color: #a5b4fc; font-weight: 600; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3);'>
+            👥 Total Users: {stats.get('total_users', 0)}
+        </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center; font-weight: 900; color: #6366f1; font-size: 4rem; margin-bottom: 0px;'>VORTEX</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: rgba(255,255,255,0.5); font-size: 1.2rem; margin-top: 0px; letter-spacing: 2px;'>AI ANOMALY DETECTOR</p>", unsafe_allow_html=True)
@@ -329,6 +347,9 @@ if not st.session_state.user_id:
                 if name and email:
                     with st.spinner("Authenticating..."):
                         result, err = api_post("/users", json_body={"name": name, "email": email})
+                        # Increment debug login counter and total users counter
+                        if not err:
+                            api_post("/stats/increment", json_body={"increment_debug": True, "increment_total_users": True})
                     if err:
                         st.error(err)
                     else:
@@ -418,6 +439,16 @@ with st.sidebar:
 
 
 if page == " Dashboard":
+    # Get system stats for display
+    stats = get_system_stats()
+    
+    # Add total users counter in top right
+    st.markdown(f"""
+        <div style='position: fixed; top: 20px; right: 20px; z-index: 999; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); padding: 12px 20px; border-radius: 12px; color: #a5b4fc; font-weight: 600; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3);'>
+            👥 Total Users: {stats.get('total_users', 0)}
+        </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown('<h1 class="main-title">Vortex Finance</h1>', unsafe_allow_html=True)
     st.markdown(
         """

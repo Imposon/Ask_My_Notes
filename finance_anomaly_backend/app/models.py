@@ -71,3 +71,12 @@ class UserBaseline(Base):
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     user = relationship("User", back_populates="baseline")
+
+
+class SystemStats(Base):
+    __tablename__ = "system_stats"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    total_users = Column(Integer, default=0, nullable=False)
+    debug_logins = Column(Integer, default=0, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)

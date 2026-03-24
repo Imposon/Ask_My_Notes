@@ -318,11 +318,11 @@ if page == " Dashboard":
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.info("**Step 1**\n\n Create a user profile in the sidebar")
+        st.info("**Step 1**\n\n Upload your bank statement (CSV or PDF)")
     with col2:
-        st.info("**Step 2**\n\n Upload your bank statement (CSV or PDF)")
+        st.info("**Step 2**\n\n Run anomaly analysis and review results")
     with col3:
-        st.info("**Step 3**\n\n Run anomaly analysis and review results")
+        st.info("**Step 3**\n\n Run AI insights and get a summary view")
 
     st.markdown("---")
 

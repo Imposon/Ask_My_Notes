@@ -16,6 +16,7 @@ from io import BytesIO, StringIO
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import requests
 import streamlit as st
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request

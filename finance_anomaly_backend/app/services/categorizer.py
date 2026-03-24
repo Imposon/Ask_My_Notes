@@ -4,7 +4,15 @@ Keyword-based transaction categoriser.
 Easily extendable: just add keywords to CATEGORY_KEYWORDS.
 """
 
+import os
+import json
 import pandas as pd
+from openai import OpenAI
+
+try:
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+except:
+    client = None
 
 
 # Keyword → category mapping.  Keys are lowercase substrings matched against
@@ -61,4 +69,25 @@ def categorize(description: str) -> str:
 def categorize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["category"] = df["description"].apply(categorize)
+    
+    # LLM Fallback for "Others" if API key is present
+    if client and os.getenv("OPENAI_API_KEY"):
+        others_mask = df["category"] == "Others"
+        unknown_desc = df.loc[others_mask, "description"].unique().tolist()
+        
+        if unknown_desc:
+            # Categorize only unique unknown descriptions to save tokens
+            prompt = f"Categorize these merchants: {json.dumps(unknown_desc[:20])}. Options: {', '.join(CATEGORY_KEYWORDS.keys())}. Return JSON: {{\"mapping\": {{\"merchant\": \"category\"}}}}"
+            try:
+                resp = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "system", "content": "You are a financial categorizer. Respond only with JSON mapping."},
+                              {"role": "user", "content": prompt}],
+                    response_format={ "type": "json_object" }
+                )
+                mapping = json.loads(resp.choices[0].message.content).get("mapping", {})
+                df.loc[others_mask, "category"] = df.loc[others_mask, "description"].map(lambda x: mapping.get(x, "Others"))
+            except:
+                pass
+                
     return df

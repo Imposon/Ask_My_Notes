@@ -1,4 +1,8 @@
+import os
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +13,7 @@ from app.models import User
 from app.schemas import UserCreate, UserResponse
 from app.routes.upload import router as upload_router
 from app.routes.analyze import router as analyze_router
+from app.routes.ai_insights import router as ai_insights_router
 from app.utils.helpers import ensure_ml_models_dir
 
 
@@ -36,6 +41,7 @@ app.add_middleware(
 
 app.include_router(upload_router)
 app.include_router(analyze_router)
+app.include_router(ai_insights_router)
 
 
 @app.get("/health")

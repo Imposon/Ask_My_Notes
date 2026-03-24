@@ -287,7 +287,7 @@ with st.sidebar:
     st.markdown("<p style='color: rgba(255,255,255,0.4); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;'>NAVIGATE</p>", unsafe_allow_html=True)
     page = st.radio(
         "Navigation",
-        [" Dashboard", " Upload Statement", " Run Analysis", " Transactions", " About"],
+        [" Dashboard", " Upload Statement", " Run Analysis", " Transactions", " AI Insights", " About"],
         label_visibility="collapsed",
     )
 
@@ -405,6 +405,87 @@ if page == " Dashboard":
             -  **45–74** — Medium Risk
             -  **<45** — Normal
             """)
+
+elif page == " AI Insights":
+    st.markdown('<h1 class="main-title">AI Financial Insights</h1>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <p style="font-size: 1.25rem; color: rgba(255,255,255,0.6); margin-top: -10px;">
+        Proactive financial assistant powered by Vortex AI (GPT-4o).
+        </p>
+        """, unsafe_allow_html=True
+    )
+    st.markdown("---")
+
+    if not st.session_state.user_id:
+        st.warning(" Please create or login with a user profile in the sidebar first.")
+        st.stop()
+
+    if not backend_ok:
+        st.error(" Backend is not running. Please start the FastAPI server.")
+        st.stop()
+
+    if st.button("✨ Generate / Refresh AI Insights", use_container_width=True):
+        with st.spinner("Vortex AI is analyzing your financial patterns..."):
+            result, err = api_post(f"/ai-insights/{st.session_state.user_id}")
+            if err:
+                st.error(f"Failed to generate insights: {err}")
+                if "OpenAI API key" in str(err):
+                    st.info("💡 Tip: Make sure to set `OPENAI_API_KEY` in your environment variables.")
+            else:
+                st.session_state.ai_insights = result
+                st.success("Insights generated successfully!")
+
+    if "ai_insights" in st.session_state:
+        insights = st.session_state.ai_insights
+        risk_score = insights.get("risk_score", 0)
+        
+        c1, c2 = st.columns([1, 2])
+        
+        with c1:
+            risk_color = "#ff4b4b" if risk_score > 70 else "#ffa500" if risk_score > 40 else "#00ff66"
+            risk_label = "CRITICAL" if risk_score > 70 else "MODERATE" if risk_score > 40 else "HEALTHY"
+            
+            st.markdown(f"""
+                <div style='background: rgba(255,255,255,0.03); padding: 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);'>
+                    <p style='color: gray; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;'>VORTEX RISK SCORE</p>
+                    <h1 style='color: {risk_color}; font-size: 5.5rem; margin: 0; line-height: 1;'>{risk_score}</h1>
+                    <p style='color: {risk_color}; font-weight: 800; letter-spacing: 2px; margin-top: 10px;'>{risk_label}</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+        with c2:
+            st.markdown("### 🤖 Proactive AI Summary")
+            st.info(insights.get("ai_summary", "No summary available."))
+            
+            st.markdown("### 💡 Recommended Actions")
+            for rec in insights.get("recommendations", []):
+                st.markdown(f"- **{rec}**")
+
+        st.markdown("---")
+        
+        t1, t2 = st.columns(2)
+        with t1:
+            st.markdown("### 📊 Spend by Category")
+            cats = insights.get("categories", {})
+            if cats:
+                cat_df = pd.DataFrame(list(cats.items()), columns=["Category", "Amount"])
+                st.bar_chart(cat_df.set_index("Category"))
+        
+        with t2:
+            st.markdown("### 🚨 High Risk Anomalies")
+            if st.session_state.transactions:
+                df = pd.DataFrame(st.session_state.transactions)
+                if "is_anomaly" in df.columns and "anomaly_score" in df.columns:
+                    high_risk = df[df["anomaly_score"] >= 75].sort_values("anomaly_score", ascending=False)
+                    if not high_risk.empty:
+                        st.dataframe(high_risk[["date", "description", "amount", "category", "anomaly_score"]], use_container_width=True)
+                    else:
+                        st.write("No high-risk anomalies detected in current dataset.")
+                else:
+                    st.write("Run transaction analysis first to see anomaly flags here.")
+            else:
+                st.write("No transactions loaded. Please upload a statement first.")
 
 elif page == " Upload Statement":
     st.title(" Upload Bank Statement")

@@ -31,6 +31,8 @@ class User(Base):
     id = Column(String(36), primary_key=True, default=_new_uuid)
     name = Column(String(128), nullable=False)
     email = Column(String(256), unique=True, nullable=False, index=True)
+    google_id = Column(String(256), unique=True, nullable=True, index=True)
+    picture = Column(String(512), nullable=True)
     created_at = Column(DateTime, default=_utcnow)
 
     transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
@@ -69,3 +71,12 @@ class UserBaseline(Base):
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     user = relationship("User", back_populates="baseline")
+
+
+class SystemStats(Base):
+    __tablename__ = "system_stats"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    total_users = Column(Integer, default=0, nullable=False)
+    debug_logins = Column(Integer, default=0, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)

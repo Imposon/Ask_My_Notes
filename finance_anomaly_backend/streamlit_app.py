@@ -541,10 +541,6 @@ elif page == " AI Insights":
         st.warning(" Please create or login with a user profile in the sidebar first.")
         st.stop()
 
-    if not backend_ok:
-        st.error(" Backend is not running. Please start the FastAPI server.")
-        st.stop()
-
     if st.button("✨ Generate / Refresh AI Insights", use_container_width=True):
         with st.spinner("Vortex AI is analyzing your financial patterns..."):
             with DbSession() as db:
@@ -611,10 +607,6 @@ elif page == " Upload Statement":
 
     if not st.session_state.user_id:
         st.warning(" Please create or login with a user profile in the sidebar first.")
-        st.stop()
-
-    if not backend_ok:
-        st.error(" Backend is not running. Please start the FastAPI server.")
         st.stop()
 
     st.markdown(f"Uploading for user: **{st.session_state.user_name}**")

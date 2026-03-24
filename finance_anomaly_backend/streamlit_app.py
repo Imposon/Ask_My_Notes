@@ -776,35 +776,6 @@ if "user_name" not in st.session_state:
 if "transactions" not in st.session_state:
     st.session_state.transactions = None
 
-# Handle OAuth callback
-if "code" in st.query_params:
-    code = st.query_params["code"]
-    flow = create_google_flow()
-    if flow:
-        try:
-            flow.fetch_token(code=code)
-            credentials = flow.credentials
-            service = build('oauth2', 'v2', credentials=credentials)
-            user_info = service.userinfo().get().execute()
-            
-            db = get_db()
-            try:
-                name = user_info.get("name")
-                email = user_info.get("email")
-                google_id = user_info.get("id")
-                picture = user_info.get("picture")
-                
-                user = create_user(name, email, db)
-                
-                st.session_state.user_id = user.id
-                st.session_state.user_name = user.name
-                st.query_params.clear()
-                st.rerun()
-            finally:
-                db.close()
-        except Exception as e:
-            st.error(f"Authentication failed: {str(e)}")
-
 # Main app logic
 if not st.session_state.user_id:
     # Get system stats for display
@@ -832,58 +803,28 @@ if not st.session_state.user_id:
         st.markdown("<h3 style='text-align: center; margin-bottom: 5px;'>Secure Login</h3>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: gray; font-size: 0.9rem; margin-bottom: 25px;'>Sign in or create an account to continue</p>", unsafe_allow_html=True)
         
-        # Check if OAuth is configured
-        if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET or GOOGLE_CLIENT_ID == "your-google-client-id":
-            name = st.text_input("Full Name", placeholder="e.g. John Doe")
-            email = st.text_input("Email Address", placeholder="e.g. john@example.com")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Access Dashboard", use_container_width=True):
-                if name and email:
-                    db = get_db()
-                    try:
-                        user = create_user(name, email, db)
-                        # Increment debug login counter and total users counter
-                        increment_stats(db, increment_debug=True, increment_total_users=True)
-                        
-                        st.session_state.user_id = user.id
-                        st.session_state.user_name = user.name
-                        st.success("Access Granted! Redirecting...")
-                        time.sleep(0.5)
-                        st.rerun()
-                    finally:
-                        db.close()
-                else:
-                    st.warning("All fields are required to continue.")
-        else:
-            # Google OAuth Button
-            flow = create_google_flow()
-            auth_url, _ = flow.authorization_url(prompt='consent')
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(f"""
-                <a href="{auth_url}" target="_self" style="text-decoration: none;">
-                    <button style="
-                        width: 100%;
-                        background: white;
-                        color: #1a1a1a;
-                        border: 1px solid #dadce0;
-                        border-radius: 10px;
-                        font-weight: 600;
-                        padding: 12px 24px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        gap: 12px;
-                        cursor: pointer;
-                        transition: all 0.2s ease;
-                        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-                    ">
-                        <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" width="20px" height="20px">
-                        Sign in with Google
-                    </button>
-                </a>
-            """, unsafe_allow_html=True)
+        # Simple hardcoded login - always use this
+        name = st.text_input("Full Name", placeholder="e.g. John Doe")
+        email = st.text_input("Email Address", placeholder="e.g. john@example.com")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Access Dashboard", use_container_width=True):
+            if name and email:
+                db = get_db()
+                try:
+                    user = create_user(name, email, db)
+                    # Increment debug login counter and total users counter
+                    increment_stats(db, increment_debug=True, increment_total_users=True)
+                    
+                    st.session_state.user_id = user.id
+                    st.session_state.user_name = user.name
+                    st.success("Access Granted! Redirecting...")
+                    time.sleep(0.5)
+                    st.rerun()
+                finally:
+                    db.close()
+            else:
+                st.warning("All fields are required to continue.")
         
         st.markdown("</div>", unsafe_allow_html=True)
     

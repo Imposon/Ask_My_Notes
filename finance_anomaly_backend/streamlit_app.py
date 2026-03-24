@@ -11,7 +11,7 @@ Make sure the FastAPI backend is running:
 import json
 import os
 import time
-from io import BytesIO, StringIO
+from io import StringIO
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,44 +23,11 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
 
-# Database & Models
-from sqlalchemy.orm import Session
-from app.database import SessionLocal, create_all
-from app.models import User, Transaction, UserBaseline
-from app.services.parser import parse_csv, parse_pdf
-from app.services.categorizer import categorize_dataframe
-from app.services.anomaly_engine import detect_anomalies
-from app.services.baseline import compute_baseline, save_baseline
-from app.services.explanation_engine import generate_explanations
-from app.services.feature_engineering import engineer_features
-from app.services.ai_insight_service import generate_financial_insights
-from app.utils.helpers import extract_merchant, ensure_ml_models_dir
-
 # Load environment variables
 load_dotenv()
 
-# Pre-flight checks
-create_all()
-ensure_ml_models_dir()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        return db
-    except:
-        db.close()
-        raise
-
-# Helper for wrapping logic in DB session
-class DbSession:
-    def __enter__(self):
-        self.db = SessionLocal()
-        return self.db
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type:
-            self.db.rollback()
-        self.db.close()
-
+API_BASE = "http://127.0.0.1:8000"
 st.set_page_config(
     page_title="Vortex Finance | AI Anomaly Detector",
     layout="wide",
@@ -195,6 +162,60 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 
+def api_get(path: str, params: dict = None):
+    try:
+        r = requests.get(f"{API_BASE}{path}", params=params, timeout=15)
+        r.raise_for_status()
+        return r.json(), None
+    except requests.exceptions.ConnectionError:
+        return None, "Cannot connect to backend. Is the FastAPI server running on port 8000?"
+    except requests.exceptions.HTTPError as e:
+        try:
+            detail = e.response.json().get("detail", str(e))
+        except Exception:
+            detail = str(e)
+        return None, detail
+    except Exception as e:
+        return None, str(e)
+
+
+def api_post(path: str, json_body: dict = None, files=None, params: dict = None):
+    try:
+        r = requests.post(
+            f"{API_BASE}{path}",
+            json=json_body,
+            files=files,
+            params=params,
+            timeout=60,
+        )
+        r.raise_for_status()
+        return r.json(), None
+    except requests.exceptions.ConnectionError:
+        return None, "Cannot connect to backend. Is the FastAPI server running on port 8000?"
+    except requests.exceptions.HTTPError as e:
+        try:
+            detail = e.response.json().get("detail", str(e))
+        except Exception:
+            detail = str(e)
+        return None, detail
+    except Exception as e:
+        return None, str(e)
+
+
+def check_backend() -> bool:
+    data, err = api_get("/health")
+    return data is not None and data.get("status") == "healthy"
+
+
+def risk_color(score: float) -> str:
+    if score >= 75:
+        return ""
+    elif score >= 45:
+        return ""
+    else:
+        return ""
+
+
 def risk_label(score: float) -> str:
     if score >= 75:
         return "HIGH RISK"
@@ -205,99 +226,58 @@ def risk_label(score: float) -> str:
 
 
 # --- Google OAuth Configuration ---
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8501").strip()
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8501")
 SCOPES = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid']
 
-def get_google_auth_url():
-    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET or GOOGLE_CLIENT_ID == "your-google-client-id":
+def create_google_flow():
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         return None
-    
-    import urllib.parse
-    base_url = "https://accounts.google.com/o/oauth2/v2/auth"
-    params = {
-        "client_id": GOOGLE_CLIENT_ID,
-        "redirect_uri": GOOGLE_REDIRECT_URI,
-        "response_type": "code",
-        "scope": " ".join(SCOPES),
-        "access_type": "offline",
-        "prompt": "consent",
-        "state": "vortex_auth_state" # Hardcoded simple state to avoid session issues
+    client_config = {
+        "web": {
+            "client_id": GOOGLE_CLIENT_ID,
+            "project_id": "vortex-finance-auth",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "redirect_uris": [GOOGLE_REDIRECT_URI]
+        }
     }
-    return f"{base_url}?{urllib.parse.urlencode(params)}"
+    return Flow.from_client_config(
+        client_config,
+        scopes=SCOPES,
+        redirect_uri=GOOGLE_REDIRECT_URI
+    )
 
 
 # --- Handle OAuth Callback ---
 if "code" in st.query_params:
     code = st.query_params["code"]
-    
-    try:
-        # Direct token exchange to avoid state/verifier issues in Streamlit reruns
-        token_url = "https://oauth2.googleapis.com/token"
-        data = {
-            "code": code,
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "redirect_uri": GOOGLE_REDIRECT_URI,
-            "grant_type": "authorization_code",
-        }
-        
-        response = requests.post(token_url, data=data)
-        token_data = response.json()
-        
-        if "access_token" in token_data:
-            access_token = token_data["access_token"]
-            
-            # Fetch user info using the access token
-            user_info_url = "https://www.googleapis.com/oauth2/v2/userinfo"
-            headers = {"Authorization": f"Bearer {access_token}"}
-            user_info_res = requests.get(user_info_url, headers=headers)
-            user_info = user_info_res.json()
+    flow = create_google_flow()
+    if flow:
+        try:
+            flow.fetch_token(code=code)
+            credentials = flow.credentials
+            service = build('oauth2', 'v2', credentials=credentials)
+            user_info = service.userinfo().get().execute()
             
             # Sync with backend
             name = user_info.get("name")
             email = user_info.get("email")
             
-            if name and email:
-                # Sync with local database directly
-                with DbSession() as db:
-                    existing = db.query(User).filter(User.email == email).first()
-                    if not existing:
-                        user = User(name=name, email=email)
-                        db.add(user)
-                        db.commit()
-                        db.refresh(user)
-                    else:
-                        user = existing
-                    
-                    st.session_state.user_id = user.id
-                    st.session_state.user_name = user.name
-                
-                # Clear query params and rerun
+            result, err = api_post("/users", json_body={"name": name, "email": email})
+            if not err:
+                st.session_state.user_id = result["id"]
+                st.session_state.user_name = result["name"]
+                # Clear query params to clean up URL
                 st.query_params.clear()
                 st.rerun()
             else:
-                st.error("Could not retrieve user name or email from Google.")
-        else:
-            # Showing detailed error to help user debug their Google Console config
-            error_code = token_data.get("error", "Unknown")
-            error_msg = token_data.get("error_description", "No description provided")
-            st.error(f"Authentication failed: {error_code}")
-            st.info(f"**Detail:** {error_msg}")
-            st.warning("⚠️ Please double-check that your **Redirect URI** in Google Console is exactly `http://localhost:8501` and your **Client Secret** is correct.")
-            
-            # Debug info (only if developer needs it)
-            with st.expander("Technical Debug Info"):
-                st.write("Attempted Data:", {
-                    "client_id": GOOGLE_CLIENT_ID[:10] + "...",
-                    "redirect_uri": GOOGLE_REDIRECT_URI,
-                    "grant_type": "authorization_code"
-                })
-                st.write("Google Response:", token_data)
-            
-    except Exception as e:
-        st.error(f"Authentication failed: {str(e)}")
+                st.error(f"Failed to sync user with backend: {err}")
+        except Exception as e:
+            st.error(f"Authentication failed: {str(e)}")
 
 
 
@@ -324,12 +304,35 @@ if not st.session_state.user_id:
         st.markdown("<h3 style='text-align: center; margin-bottom: 5px;'>Secure Login</h3>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: gray; font-size: 0.9rem; margin-bottom: 25px;'>Sign in or create an account to continue</p>", unsafe_allow_html=True)
         
-        # Google OAuth Button (Primary Login Method)
-        auth_url = get_google_auth_url()
+        backend_ok = check_backend()
         
-        if auth_url:
+        # Original simple form kept as fallback or if OAuth is not configured
+        if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET or GOOGLE_CLIENT_ID == "your-google-client-id":
+            name = st.text_input("Full Name", placeholder="e.g. John Doe")
+            email = st.text_input("Email Address", placeholder="e.g. john@example.com")
+            
             st.markdown("<br>", unsafe_allow_html=True)
-            # Custom styled button for Google
+            if st.button("Access Dashboard", use_container_width=True, disabled=not backend_ok):
+                if name and email:
+                    with st.spinner("Authenticating..."):
+                        result, err = api_post("/users", json_body={"name": name, "email": email})
+                    if err:
+                        st.error(err)
+                    else:
+                        st.session_state.user_id = result["id"]
+                        st.session_state.user_name = result["name"]
+                        st.success("Access Granted! Redirecting...")
+                        time.sleep(0.5)
+                        st.rerun()
+                else:
+                    st.warning("All fields are required to continue.")
+        else:
+            # Google OAuth Button
+            flow = create_google_flow()
+            auth_url, _ = flow.authorization_url(prompt='consent')
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            # Custom styled button to match Google brand but fit existing UI
             st.markdown(f"""
                 <a href="{auth_url}" target="_self" style="text-decoration: none;">
                     <button style="
@@ -354,34 +357,16 @@ if not st.session_state.user_id:
                 </a>
             """, unsafe_allow_html=True)
             
-            # Subtext for configuration warning
-            if GOOGLE_CLIENT_ID == "your-google-client-id" or not GOOGLE_CLIENT_ID:
-                st.markdown("<p style='text-align: center; color: #ffab00; font-size: 0.75rem; margin-top: 10px;'>⚠️ Google OAuth is not yet configured in .env</p>", unsafe_allow_html=True)
-        else:
-            st.error("Google Auth Configuration Error. Check your .env file.")
-            
-        # Manual bypass logic - Always available as fallback
-        with st.expander("Or use manual login (Debug Only)"):
-            m_name = st.text_input("Full Name", placeholder="e.g. John Doe", key="man_name")
-            m_email = st.text_input("Email Address", placeholder="e.g. john@example.com", key="man_email")
-            if st.button("Access Dashboard", use_container_width=True):
-                if m_name and m_email:
-                    with DbSession() as db:
-                        existing = db.query(User).filter(User.email == m_email).first()
-                        if not existing:
-                            user = User(name=m_name, email=m_email)
-                            db.add(user)
-                            db.commit()
-                            db.refresh(user)
-                        else:
-                            user = existing
-                        st.session_state.user_id = user.id
-                        st.session_state.user_name = user.name
-                        st.rerun()
-                else:
-                    st.warning("Please enter both name and email.")
+            if not backend_ok:
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.error("System Offline - Backend is not running on port 8000")
+                
+        if not backend_ok:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.error("System Offline - Backend is not running on port 8000")
             
         st.markdown("</div>", unsafe_allow_html=True)
+        
     st.stop()
 
 
@@ -390,17 +375,11 @@ with st.sidebar:
     st.markdown("<p style='text-align: center; color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-top: 0px;'>AI ANOMALY DETECTOR</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Performance optimization: Load basic stats
-    if st.session_state.user_id:
-        with DbSession() as db:
-            txns = db.query(Transaction).filter(Transaction.user_id == st.session_state.user_id).order_by(Transaction.date).all()
-            st.session_state.transactions = [
-                {
-                    "id": t.id, "date": t.date.isoformat(), "amount": t.amount, "merchant": t.merchant,
-                    "description": t.description, "category": t.category, "hour": t.hour,
-                    "is_anomaly": t.is_anomaly, "anomaly_score": t.anomaly_score
-                } for t in txns
-            ]
+    backend_ok = check_backend()
+    if backend_ok:
+        st.markdown("<div style='background: rgba(0,255,100,0.1); border: 1px solid rgba(0,255,100,0.2); padding: 10px; border-radius: 8px; color: #00ff66; text-align: center; font-size: 0.85rem; font-weight: 600;'> System Online</div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div style='background: rgba(255,50,50,0.1); border: 1px solid rgba(255,50,50,0.2); padding: 10px; border-radius: 8px; color: #ff3232; text-align: center; font-size: 0.85rem; font-weight: 600;'> System Offline</div>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -541,15 +520,20 @@ elif page == " AI Insights":
         st.warning(" Please create or login with a user profile in the sidebar first.")
         st.stop()
 
+    if not backend_ok:
+        st.error(" Backend is not running. Please start the FastAPI server.")
+        st.stop()
+
     if st.button("✨ Generate / Refresh AI Insights", use_container_width=True):
         with st.spinner("Vortex AI is analyzing your financial patterns..."):
-            with DbSession() as db:
-                result = generate_financial_insights(db=db, user_id=st.session_state.user_id)
-                if "error" in result:
-                    st.error(f"Failed to generate insights: {result['error']}")
-                else:
-                    st.session_state.ai_insights = result
-                    st.success("Insights generated successfully!")
+            result, err = api_post(f"/ai-insights/{st.session_state.user_id}")
+            if err:
+                st.error(f"Failed to generate insights: {err}")
+                if "OpenAI API key" in str(err):
+                    st.info("💡 Tip: Make sure to set `OPENAI_API_KEY` in your environment variables.")
+            else:
+                st.session_state.ai_insights = result
+                st.success("Insights generated successfully!")
 
     if "ai_insights" in st.session_state:
         insights = st.session_state.ai_insights
@@ -609,6 +593,10 @@ elif page == " Upload Statement":
         st.warning(" Please create or login with a user profile in the sidebar first.")
         st.stop()
 
+    if not backend_ok:
+        st.error(" Backend is not running. Please start the FastAPI server.")
+        st.stop()
+
     st.markdown(f"Uploading for user: **{st.session_state.user_name}**")
     st.markdown("---")
 
@@ -652,136 +640,74 @@ elif page == " Upload Statement":
         st.dataframe(pd.read_csv(StringIO(sample_csv)), use_container_width=True, height=250)
 
         if st.button(" Upload Sample Data", use_container_width=True):
-            with st.spinner("Processing sample transactions..."):
-                df = parse_csv(sample_csv.encode())
-                df = categorize_dataframe(df)
-                df["merchant"] = df["description"].apply(extract_merchant)
-                df["hour"] = df["date"].dt.hour
-                df["day_of_week"] = df["date"].dt.dayofweek
-                
-                with DbSession() as db:
-                    records = []
-                    for _, row in df.iterrows():
-                        records.append(Transaction(
-                            user_id=st.session_state.user_id,
-                            date=row["date"].to_pydatetime(),
-                            amount=float(row["amount"]),
-                            merchant=row["merchant"],
-                            description=row["description"],
-                            category=row["category"],
-                            hour=int(row["hour"]),
-                            day_of_week=int(row["day_of_week"]),
-                        ))
-                    db.bulk_save_objects(records)
-                    db.commit()
-                st.success(f" {len(df)} sample transactions uploaded!")
-                st.session_state.transactions = None
+            with st.spinner("Uploading sample transactions..."):
+                data, err = api_post(
+                    "/upload",
+                    files={"file": ("sample.csv", sample_csv.encode(), "text/csv")},
+                    params={"user_id": st.session_state.user_id},
+                )
+            if err:
+                st.error(f"Upload failed: {err}")
+            else:
+                st.success(f" {data['transactions_parsed']} sample transactions uploaded! Now go to **Run Analysis**.")
+                st.session_state.transactions = None  # Reset cache
 
     with tab_pdf:
         st.markdown("""
         **PDF Bank Statements** are supported via:
         1. Table extraction (for structured PDFs)
         2. Regex pattern fallback for unstructured layouts
+
+        The parser looks for rows matching: `date  description  amount`
         """)
         uploaded_pdf = st.file_uploader("Choose PDF file", type=["pdf"], key="pdf_upload")
         if uploaded_pdf and st.button(" Upload PDF", use_container_width=True):
             with st.spinner("Extracting and parsing PDF..."):
-                try:
-                    df = parse_pdf(uploaded_pdf.getvalue())
-                    if df.empty:
-                        st.error("No valid transactions found in the PDF.")
-                    else:
-                        df = categorize_dataframe(df)
-                        df["merchant"] = df["description"].apply(extract_merchant)
-                        df["hour"] = df["date"].dt.hour
-                        df["day_of_week"] = df["date"].dt.dayofweek
-                        
-                        with DbSession() as db:
-                            # Deduplication
-                            existing_txs = db.query(Transaction.date, Transaction.description, Transaction.amount).filter(
-                                Transaction.user_id == st.session_state.user_id
-                            ).all()
-                            existing_set = { (tx.date.replace(tzinfo=None), tx.description, float(tx.amount)) for tx in existing_txs }
-                            
-                            records = []
-                            skipped = 0
-                            for _, row in df.iterrows():
-                                dt = row["date"].to_pydatetime().replace(tzinfo=None)
-                                if (dt, row["description"], float(row["amount"])) in existing_set:
-                                    skipped += 1
-                                    continue
-                                records.append(Transaction(
-                                    user_id=st.session_state.user_id,
-                                    date=dt,
-                                    amount=float(row["amount"]),
-                                    merchant=row["merchant"],
-                                    description=row["description"],
-                                    category=row["category"],
-                                    hour=int(row["hour"]),
-                                    day_of_week=int(row["day_of_week"]),
-                                ))
-                            if records:
-                                db.bulk_save_objects(records)
-                                db.commit()
-                            st.success(f" {len(records)} transactions uploaded! {skipped} duplicates skipped.")
-                            st.session_state.transactions = None
-                except Exception as e:
-                    st.error(f"Upload failed: {str(e)}")
+                data, err = api_post(
+                    "/upload",
+                    files={"file": (uploaded_pdf.name, uploaded_pdf.getvalue(), "application/pdf")},
+                    params={"user_id": st.session_state.user_id},
+                )
+            if err:
+                st.error(f"Upload failed: {err}")
+            else:
+                st.success(f" {data['transactions_parsed']} transactions uploaded!")
+                st.json(data)
 
     with tab_csv:
         st.markdown("""
         **CSV Format Required:**
-        Column aliases supported: `date/Date`, `description/desc`, `amount/Amount`
+        ```
+        date,description,amount
+        2025-01-02 10:15:00,Swiggy Food Delivery,450
+        2025-01-03 08:30:00,Uber Ride to Office,280
+        ```
+        Column aliases supported: `date/Date/DATE`, `description/desc/narration`, `amount/Amount/debit`
         """)
         uploaded_csv = st.file_uploader("Choose CSV file", type=["csv"], key="csv_upload")
         if uploaded_csv and st.button(" Upload CSV", use_container_width=True):
             with st.spinner("Parsing and storing transactions..."):
-                try:
-                    df = parse_csv(uploaded_csv.getvalue())
-                    if df.empty:
-                        st.error("No valid transactions found in the CSV.")
-                    else:
-                        df = categorize_dataframe(df)
-                        df["merchant"] = df["description"].apply(extract_merchant)
-                        df["hour"] = df["date"].dt.hour
-                        df["day_of_week"] = df["date"].dt.dayofweek
-                        
-                        with DbSession() as db:
-                            existing_txs = db.query(Transaction.date, Transaction.description, Transaction.amount).filter(
-                                Transaction.user_id == st.session_state.user_id
-                            ).all()
-                            existing_set = { (tx.date.replace(tzinfo=None), tx.description, float(tx.amount)) for tx in existing_txs }
-                            
-                            records = []
-                            skipped = 0
-                            for _, row in df.iterrows():
-                                dt = row["date"].to_pydatetime().replace(tzinfo=None)
-                                if (dt, row["description"], float(row["amount"])) in existing_set:
-                                    skipped += 1
-                                    continue
-                                records.append(Transaction(
-                                    user_id=st.session_state.user_id,
-                                    date=dt,
-                                    amount=float(row["amount"]),
-                                    merchant=row["merchant"],
-                                    description=row["description"],
-                                    category=row["category"],
-                                    hour=int(row["hour"]),
-                                    day_of_week=int(row["day_of_week"]),
-                                ))
-                            if records:
-                                db.bulk_save_objects(records)
-                                db.commit()
-                            st.success(f" {len(records)} transactions uploaded! {skipped} duplicates skipped.")
-                            st.session_state.transactions = None
-                except Exception as e:
-                    st.error(f"Upload failed: {str(e)}")
+                data, err = api_post(
+                    "/upload",
+                    files={"file": (uploaded_csv.name, uploaded_csv.getvalue(), "text/csv")},
+                    params={"user_id": st.session_state.user_id},
+                )
+            if err:
+                st.error(f"Upload failed: {err}")
+            else:
+                st.success(f" {data['transactions_parsed']} transactions uploaded successfully!")
+                st.json(data)
+
 
 elif page == " Run Analysis":
     st.title(" Anomaly Detection Analysis")
 
     if not st.session_state.user_id:
         st.warning(" Please create or login with a user profile in the sidebar first.")
+        st.stop()
+
+    if not backend_ok:
+        st.error(" Backend is not running. Please start the FastAPI server.")
         st.stop()
 
     st.markdown(f"Running analysis for: **{st.session_state.user_name}**")
@@ -804,56 +730,30 @@ elif page == " Run Analysis":
 
     if run_btn:
         with st.spinner("Running hybrid anomaly detection pipeline..."):
-            progress = st.progress(0, text="Reading transactions...")
-            
-            with DbSession() as db:
-                txns = db.query(Transaction).filter(Transaction.user_id == st.session_state.user_id).order_by(Transaction.date).all()
-                if not txns:
-                    st.error("No transactions found. Please upload a statement first.")
-                else:
-                    progress.progress(20, text="Feature engineering...")
-                    rows = []
-                    for t in txns:
-                        rows.append({
-                            "id": t.id, "user_id": t.user_id, "date": pd.Timestamp(t.date),
-                            "amount": t.amount, "merchant": t.merchant or "Unknown",
-                            "description": t.description or "", "category": t.category or "Others",
-                            "hour": t.hour or 0, "day_of_week": t.day_of_week or 0
-                        })
-                    df = pd.DataFrame(rows)
-                    df = engineer_features(df)
-                    
-                    progress.progress(40, text="Computing behavioral baseline...")
-                    baseline_data = compute_baseline(df)
-                    save_baseline(db, st.session_state.user_id, baseline_data)
-                    
-                    progress.progress(60, text="Running Isolation Forest...")
-                    df = detect_anomalies(df, baseline_data, st.session_state.user_id, threshold=threshold)
-                    
-                    progress.progress(80, text="Generating explanations...")
-                    anomaly_results = generate_explanations(df, baseline_data)
-                    
-                    # Update DB
-                    for _, row in df.iterrows():
-                        txn_id = row.get("id")
-                        if txn_id:
-                            db.query(Transaction).filter(Transaction.id == int(txn_id)).update({
-                                "anomaly_score": float(row.get("risk_score", 0)),
-                                "is_anomaly": bool(row.get("is_anomaly", False)),
-                                "explanations": next((r.explanations for r in anomaly_results if r.transaction_id == txn_id), None)
-                            })
-                    db.commit()
-                    
-                    st.session_state.analysis_result = {
-                        "total_transactions": len(df),
-                        "anomalies_found": len(anomaly_results),
-                        "anomalies": [r.dict() for r in anomaly_results]
-                    }
-                    progress.progress(100, text="Done!")
-                    time.sleep(0.5)
-                    progress.empty()
-                    st.success(" Analysis complete!")
-                    st.rerun()
+            progress = st.progress(0, text="Feature engineering...")
+            time.sleep(0.3)
+            progress.progress(30, text="Computing behavioral baseline...")
+            time.sleep(0.3)
+            progress.progress(60, text="Running Isolation Forest...")
+
+            result, err = api_post(
+                f"/analyze/{st.session_state.user_id}",
+                params={"threshold": threshold},
+            )
+            progress.progress(90, text="Generating explanations...")
+            time.sleep(0.2)
+            progress.progress(100, text="Done!")
+            time.sleep(0.3)
+            progress.empty()
+
+        if err:
+            st.error(f"Analysis failed: {err}")
+        else:
+            st.session_state.analysis_result = result
+            txns, _ = api_get(f"/transactions/{st.session_state.user_id}")
+            if txns:
+                st.session_state.transactions = txns
+            st.success(" Analysis complete!")
 
     if st.session_state.analysis_result:
         result = st.session_state.analysis_result
@@ -969,6 +869,10 @@ elif page == " Transactions":
         st.warning(" Please create or login with a user profile in the sidebar first.")
         st.stop()
 
+    if not backend_ok:
+        st.error(" Backend is not running. Please start the FastAPI server.")
+        st.stop()
+
     col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
     with col_f1:
         anomalies_only = st.toggle(" Show Anomalies Only", value=False)
@@ -977,31 +881,29 @@ elif page == " Transactions":
             st.session_state.transactions = None
     with col_f3:
         if st.button(" Clear Transactions", use_container_width=True):
-            with DbSession() as db:
-                db.query(Transaction).filter(Transaction.user_id == st.session_state.user_id).delete()
-                db.commit()
-                st.session_state.transactions = None
-                st.session_state.analysis_result = None
-                st.success("Transactions cleared!")
-                st.rerun()
+            with st.spinner("Clearing history..."):
+                _, err = api_post(f"/transactions/{st.session_state.user_id}/clear")
+                if err:
+                    st.error(f"Failed to clear: {err}")
+                else:
+                    st.session_state.transactions = None
+                    st.session_state.analysis_result = None
+                    st.success("Transactions cleared!")
+                    st.rerun()
 
-    # Load transactions from DB
-    with DbSession() as db:
-        query = db.query(Transaction).filter(Transaction.user_id == st.session_state.user_id)
-        if anomalies_only:
-            query = query.filter(Transaction.is_anomaly == True)
-        txns_raw = query.order_by(Transaction.date.desc()).all()
-        
-        txns = []
-        for t in txns_raw:
-            txns.append({
-                "id": t.id, "date": t.date.isoformat(), "amount": t.amount, "merchant": t.merchant or "Unknown",
-                "description": t.description or "", "category": t.category or "Others",
-                "hour": t.hour or 0, "day_of_week": t.day_of_week or 0,
-                "is_anomaly": t.is_anomaly, "anomaly_score": t.anomaly_score,
-                "explanations": t.explanations
-            })
-        st.session_state.transactions = txns
+    if not st.session_state.transactions or anomalies_only:
+        with st.spinner("Loading transactions..."):
+            txns, err = api_get(
+                f"/transactions/{st.session_state.user_id}",
+                params={"anomalies_only": str(anomalies_only).lower()},
+            )
+        if err:
+            st.error(f"Failed to load transactions: {err}")
+            st.stop()
+        if not anomalies_only:
+            st.session_state.transactions = txns
+    else:
+        txns = st.session_state.transactions
 
     if not txns:
         st.info("No transactions found. Upload a bank statement first.")

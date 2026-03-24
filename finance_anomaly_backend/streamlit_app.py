@@ -768,6 +768,17 @@ def get_user_transactions(user_id: str, db: Session):
     
     return pd.DataFrame(rows)
 
+def clear_user_transactions(user_id: str, db: Session):
+    """Clear all transactions for a user"""
+    try:
+        count = db.query(Transaction).filter(Transaction.user_id == user_id).count()
+        db.query(Transaction).filter(Transaction.user_id == user_id).delete()
+        db.commit()
+        return {"status": "success", "message": f"Cleared {count} transactions", "count": count}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": f"Failed to clear transactions: {str(e)}"}
+
 # Session state initialization
 if "user_id" not in st.session_state:
     st.session_state.user_id = None

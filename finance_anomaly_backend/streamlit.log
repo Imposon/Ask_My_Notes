@@ -39,3 +39,145 @@ For `use_container_width=True`, use `width='stretch'`. For `use_container_width=
 `use_container_width` will be removed after 2025-12-31.
 
 For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-03-24 16:33:16.394 Script compilation error
+Traceback (most recent call last):
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/streamlit_app.py", line 197
+    else:
+IndentationError: unexpected indent
+2026-03-24 16:33:16.479 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-24 16:33:22.232 Script compilation error
+Traceback (most recent call last):
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_cache.py", line 72, in get_bytecode
+    filebody = magic.add_magic(filebody, script_path)
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/magic.py", line 45, in add_magic
+    tree = ast.parse(code, script_path, "exec")
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/ast.py", line 46, in parse
+    return compile(source, filename, mode, flags,
+                   _feature_version=feature_version, optimize=optimize)
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/streamlit_app.py", line 197
+    else:
+IndentationError: unexpected indent
+2026-03-24 16:33:22.234 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-03-24 16:37:22.080 Uncaught app execution
+Traceback (most recent call last):
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 129, in exec_func_with_error_handling
+    result = func()
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 689, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/streamlit_app.py", line 616, in <module>
+    if not backend_ok:
+           ^^^^^^^^^^
+NameError: name 'backend_ok' is not defined
+2026-03-24 16:37:24.365 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-03-24 16:37:24.529 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-03-24 16:37:25.379 Uncaught app execution
+Traceback (most recent call last):
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 129, in exec_func_with_error_handling
+    result = func()
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 689, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/streamlit_app.py", line 544, in <module>
+    if not backend_ok:
+           ^^^^^^^^^^
+NameError: name 'backend_ok' is not defined
+2026-03-24 16:37:28.769 Uncaught app execution
+Traceback (most recent call last):
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 129, in exec_func_with_error_handling
+    result = func()
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 689, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/streamlit_app.py", line 544, in <module>
+    if not backend_ok:
+           ^^^^^^^^^^
+NameError: name 'backend_ok' is not defined
+2026-03-24 16:37:30.479 Uncaught app execution
+Traceback (most recent call last):
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 129, in exec_func_with_error_handling
+    result = func()
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 689, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/streamlit_app.py", line 616, in <module>
+    if not backend_ok:
+           ^^^^^^^^^^
+NameError: name 'backend_ok' is not defined
+2026-03-24 16:40:47.170 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-03-24 16:40:49.112 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-03-24 16:40:49.250 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-03-24 16:40:53.075 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-03-24 16:40:54.300 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/streamlit_app.py:850: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  "is_anomaly": bool(row.get("is_anomaly", False)),
+2026-03-24 16:40:58.967 Uncaught app execution
+Traceback (most recent call last):
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 129, in exec_func_with_error_handling
+    result = func()
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/.venv/lib/python3.14/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 689, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/adityasinha/Personal_Finance_Anomaly_Detector-vortex/finance_anomaly_backend/streamlit_app.py", line 928, in <module>
+    icon = risk_color(score)
+           ^^^^^^^^^^
+NameError: name 'risk_color' is not defined. Did you mean: 'risk_counts'?
+2026-03-24 16:41:04.621 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-03-24 16:41:09.617 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-03-24 16:41:09.782 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-03-24 16:41:16.017 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.

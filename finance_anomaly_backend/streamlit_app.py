@@ -600,28 +600,79 @@ def increment_stats(db: Session, increment_debug: bool = False, increment_total_
 def parse_csv(content: bytes) -> pd.DataFrame:
     try:
         df = pd.read_csv(StringIO(content.decode('utf-8')))
-        required_columns = ['date', 'description', 'amount']
         
-        # Handle column name variations
+        # Flexible column name mapping for different banks
+        # Common date column names
+        date_aliases = ['date', 'transaction date', 'txn date', 'value date', 'posting date', 
+                       'tran date', 'transactiondate', 'dateposted', 'dt', 'time', 'timestamp']
+        
+        # Common description column names
+        desc_aliases = ['description', 'narration', 'transaction details', 'particulars', 
+                       'description of transaction', 'remarks', 'details', 'transaction',
+                       'tran particulars', 'particulars', 'narration', 'transactiondescription']
+        
+        # Common amount column names
+        amount_aliases = ['amount', 'debit', 'credit', 'withdrawal', 'deposit', 
+                         'transaction amount', 'amt', 'sum', 'value', 'money', 'inr',
+                         'withdrawalamount', 'depositamount', 'dr', 'cr']
+        
+        # Find matching columns
         column_mapping = {}
-        for col in df.columns:
-            col_lower = col.lower()
-            if 'date' in col_lower and 'date' not in df.columns:
-                column_mapping[col] = 'date'
-            elif 'desc' in col_lower and 'description' not in df.columns:
-                column_mapping[col] = 'description'
-            elif col_lower in ['amount', 'debit'] and 'amount' not in df.columns:
-                column_mapping[col] = 'amount'
+        df_columns_lower = {col.lower(): col for col in df.columns}
+        
+        # Map date column
+        for alias in date_aliases:
+            if alias in df_columns_lower:
+                column_mapping[df_columns_lower[alias]] = 'date'
+                break
+        
+        # Map description column
+        for alias in desc_aliases:
+            if alias in df.columns and alias not in column_mapping.values():
+                column_mapping[alias] = 'description'
+                break
+            if alias in df_columns_lower and df_columns_lower[alias] not in column_mapping:
+                column_mapping[df_columns_lower[alias]] = 'description'
+                break
+        
+        # Map amount column - prefer debit/withdrawal over credit/deposit for consistency
+        for alias in ['debit', 'withdrawal', 'amount', 'dr']:
+            if alias in df_columns_lower:
+                column_mapping[df_columns_lower[alias]] = 'amount'
+                break
+        # If no debit/withdrawal found, use credit/deposit/amount
+        if 'amount' not in column_mapping.values():
+            for alias in ['credit', 'deposit', 'cr', 'amount', 'amt', 'sum', 'value', 'inr']:
+                if alias in df_columns_lower:
+                    column_mapping[df_columns_lower[alias]] = 'amount'
+                    break
         
         df = df.rename(columns=column_mapping)
         
         # Validate required columns
+        required_columns = ['date', 'description', 'amount']
         missing_cols = [col for col in required_columns if col not in df.columns]
         if missing_cols:
-            raise ValueError(f"Missing required columns: {missing_cols}")
+            available_cols = list(df.columns)
+            raise ValueError(f"Missing required columns: {missing_cols}. Available columns: {available_cols}. Please check your bank statement format.")
         
-        # Convert date column
-        df['date'] = pd.to_datetime(df['date'])
+        # Convert date column with multiple format support
+        date_formats = ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%d/%m/%Y %H:%M:%S', 
+                       '%d/%m/%Y', '%d-%m-%Y', '%m/%d/%Y', '%d %b %Y', '%d %B %Y',
+                       '%d-%b-%Y', '%d-%B-%Y', '%b %d, %Y', '%B %d, %Y']
+        
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        
+        # If dates are still NaT, try common formats
+        if df['date'].isna().any():
+            for fmt in date_formats:
+                mask = df['date'].isna()
+                if mask.any():
+                    parsed = pd.to_datetime(df.loc[mask, 'date'], format=fmt, errors='coerce')
+                    df.loc[mask, 'date'] = parsed
+        
+        # Convert amount to numeric, handling various formats
+        df['amount'] = df['amount'].astype(str).str.replace(',', '').str.replace('Rs.', '').str.replace('INR', '').str.replace('₹', '').str.strip()
         df['amount'] = pd.to_numeric(df['amount'], errors='coerce')
         
         return df.dropna(subset=required_columns)

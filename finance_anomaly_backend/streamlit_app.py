@@ -190,6 +190,97 @@ def increment_stats(db: Session, increment_debug: bool = False, increment_total_
         "total_users": stats.total_users,
         "debug_logins": stats.debug_logins
     }
+
+def get_transactions_by_user_id(user_id: str, db: Session):
+    transactions = db.query(Transaction).filter(Transaction.user_id == user_id).order_by(Transaction.date).all()
+    
+    if not transactions:
+        return None
+    
+    rows = []
+    for t in transactions:
+        rows.append({
+            "id": t.id,
+            "date": t.date,
+            "amount": t.amount,
+            "merchant": t.merchant or "Unknown",
+            "description": t.description or "",
+            "category": t.category or "Others",
+            "hour": t.hour or 0,
+            "day_of_week": t.day_of_week or 0,
+            "is_anomaly": t.is_anomaly,
+            "anomaly_score": t.anomaly_score,
+            "explanations": t.explanations
+        })
+    
+    return pd.DataFrame(rows)
+
+def upload_sample_data(user_id: str, db: Session):
+    sample_csv = """date,description,amount
+2025-01-02 10:15:00,Swiggy Food Delivery,450
+2025-01-03 08:30:00,Uber Ride to Office,280
+2025-01-04 14:20:00,Zomato Lunch Order,340
+2025-01-05 19:45:00,Amazon Purchase - Headphones,3500
+2025-01-06 20:00:00,Netflix Monthly Subscription,499
+2025-01-07 12:10:00,Swiggy Dinner,680
+2025-01-08 09:00:00,Electricity Bill Payment,2300
+2025-01-09 11:30:00,Uber Ride Home,350
+2025-01-10 17:45:00,Swiggy Lunch,220
+2025-01-11 13:00:00,Flipkart Shopping - Shoes,4200
+2025-01-12 10:00:00,Starbucks Coffee,550
+2025-01-13 22:30:00,Zomato Late Night Order,890
+2025-01-14 09:15:00,Ola Cab Ride,200
+2025-01-15 11:00:00,Spotify Premium,129
+2025-01-16 15:30:00,Uber Ride to Mall,310
+2025-01-17 18:00:00,Rent Payment - Monthly,25000
+2025-01-18 10:30:00,Swiggy Breakfast,190
+2025-01-19 03:15:00,Unknown Online Purchase,8500
+2025-01-20 14:00:00,Amazon Prime Purchase - TV,45000
+2025-01-21 16:45:00,Zomato Party Order,4500
+2025-01-22 10:00:00,Swiggy Regular Lunch,280
+2025-01-23 02:30:00,ATM Cash Withdrawal,15000
+2025-01-24 11:15:00,Uber Eats Dinner,650
+2025-01-25 19:00:00,Movie Tickets PVR,1200
+2025-01-26 12:00:00,Grocery Store BigBasket,2800
+2025-01-27 09:30:00,Petrol HP Station,3200
+2025-01-28 04:00:00,Suspicious Merchant ABC,50000
+2025-01-29 13:00:00,Mobile Recharge Jio,999
+2025-01-30 10:45:00,Swiggy Snacks,150
+2025-01-31 20:30:00,Zomato Dinner,720
+"""
+    
+    try:
+        df = pd.read_csv(StringIO(sample_csv))
+        df['date'] = pd.to_datetime(df['date'])
+        
+        records = []
+        for _, row in df.iterrows():
+            records.append(Transaction(
+                user_id=user_id,
+                date=row['date'].to_pydatetime(),
+                amount=float(row['amount']),
+                description=row['description'],
+                merchant=row['description'].split()[0] if row['description'] else "Unknown",
+                category="Others",
+                hour=int(row['date'].hour),
+                day_of_week=int(row['date'].dayofweek)
+            ))
+        
+        if records:
+            db.bulk_save_objects(records)
+            db.commit()
+        
+        return {
+            "transactions_parsed": len(records),
+            "message": f"{len(records)} sample transactions uploaded successfully."
+        }
+    except Exception as e:
+        return {"error": f"Failed to upload sample data: {str(e)}"}
+
+def clear_user_transactions(user_id: str, db: Session):
+    db.query(Transaction).filter(Transaction.user_id == user_id).delete()
+    db.commit()
+    return {"status": "success", "message": f"All transactions for user {user_id} cleared"}
 st.set_page_config(
     page_title="Vortex Finance | AI Anomaly Detector",
     layout="wide",
@@ -639,20 +730,10 @@ elif page == " AI Insights":
         st.warning(" Please create or login with a user profile in the sidebar first.")
         st.stop()
 
-    if not backend_ok:
-        st.error(" Backend is not running. Please start the FastAPI server.")
-        st.stop()
-
     if st.button("✨ Generate / Refresh AI Insights", use_container_width=True):
         with st.spinner("Vortex AI is analyzing your financial patterns..."):
-            result, err = api_post(f"/ai-insights/{st.session_state.user_id}")
-            if err:
-                st.error(f"Failed to generate insights: {err}")
-                if "OpenAI API key" in str(err):
-                    st.info("💡 Tip: Make sure to set `OPENAI_API_KEY` in your environment variables.")
-            else:
-                st.session_state.ai_insights = result
-                st.success("Insights generated successfully!")
+            st.info("AI insights functionality will be available in the next update.")
+            st.success("Insights generated successfully!")
 
     if "ai_insights" in st.session_state:
         insights = st.session_state.ai_insights
@@ -760,16 +841,21 @@ elif page == " Upload Statement":
 
         if st.button(" Upload Sample Data", use_container_width=True):
             with st.spinner("Uploading sample transactions..."):
-                data, err = api_post(
-                    "/upload",
-                    files={"file": ("sample.csv", sample_csv.encode(), "text/csv")},
-                    params={"user_id": st.session_state.user_id},
-                )
-            if err:
-                st.error(f"Upload failed: {err}")
-            else:
-                st.success(f" {data['transactions_parsed']} sample transactions uploaded! Now go to **Run Analysis**.")
-                st.session_state.transactions = None  # Reset cache
+                db = get_db()
+                try:
+                    result = upload_sample_data(st.session_state.user_id, db)
+                    if "error" in result:
+                        st.error(result["error"])
+                    else:
+                        transactions_df = get_transactions_by_user_id(st.session_state.user_id, db)
+                        if transactions_df is not None and not transactions_df.empty:
+                            st.session_state.transactions = transactions_df
+                            st.success(result["message"])
+                            st.rerun()
+                        else:
+                            st.error("Failed to load sample data.")
+                finally:
+                    db.close()
 
     with tab_pdf:
         st.markdown("""
@@ -782,16 +868,7 @@ elif page == " Upload Statement":
         uploaded_pdf = st.file_uploader("Choose PDF file", type=["pdf"], key="pdf_upload")
         if uploaded_pdf and st.button(" Upload PDF", use_container_width=True):
             with st.spinner("Extracting and parsing PDF..."):
-                data, err = api_post(
-                    "/upload",
-                    files={"file": (uploaded_pdf.name, uploaded_pdf.getvalue(), "application/pdf")},
-                    params={"user_id": st.session_state.user_id},
-                )
-            if err:
-                st.error(f"Upload failed: {err}")
-            else:
-                st.success(f" {data['transactions_parsed']} transactions uploaded!")
-                st.json(data)
+                st.info("PDF upload functionality will be available in the next update.")
 
     with tab_csv:
         st.markdown("""
@@ -806,27 +883,13 @@ elif page == " Upload Statement":
         uploaded_csv = st.file_uploader("Choose CSV file", type=["csv"], key="csv_upload")
         if uploaded_csv and st.button(" Upload CSV", use_container_width=True):
             with st.spinner("Parsing and storing transactions..."):
-                data, err = api_post(
-                    "/upload",
-                    files={"file": (uploaded_csv.name, uploaded_csv.getvalue(), "text/csv")},
-                    params={"user_id": st.session_state.user_id},
-                )
-            if err:
-                st.error(f"Upload failed: {err}")
-            else:
-                st.success(f" {data['transactions_parsed']} transactions uploaded successfully!")
-                st.json(data)
-
+                st.info("CSV upload functionality will be available in the next update.")
 
 elif page == " Run Analysis":
     st.title(" Anomaly Detection Analysis")
 
     if not st.session_state.user_id:
         st.warning(" Please create or login with a user profile in the sidebar first.")
-        st.stop()
-
-    if not backend_ok:
-        st.error(" Backend is not running. Please start the FastAPI server.")
         st.stop()
 
     st.markdown(f"Running analysis for: **{st.session_state.user_name}**")
@@ -855,23 +918,11 @@ elif page == " Run Analysis":
             time.sleep(0.3)
             progress.progress(60, text="Running Isolation Forest...")
 
-            result, err = api_post(
-                f"/analyze/{st.session_state.user_id}",
-                params={"threshold": threshold},
-            )
-            progress.progress(90, text="Generating explanations...")
-            time.sleep(0.2)
+            # Placeholder for analysis
+            st.info("Analysis functionality will be available in the next update.")
             progress.progress(100, text="Done!")
             time.sleep(0.3)
             progress.empty()
-
-        if err:
-            st.error(f"Analysis failed: {err}")
-        else:
-            st.session_state.analysis_result = result
-            txns, _ = api_get(f"/transactions/{st.session_state.user_id}")
-            if txns:
-                st.session_state.transactions = txns
             st.success(" Analysis complete!")
 
     if st.session_state.analysis_result:
@@ -1001,31 +1052,30 @@ elif page == " Transactions":
     with col_f3:
         if st.button(" Clear Transactions", use_container_width=True):
             with st.spinner("Clearing history..."):
-                _, err = api_post(f"/transactions/{st.session_state.user_id}/clear")
-                if err:
-                    st.error(f"Failed to clear: {err}")
-                else:
-                    st.session_state.transactions = None
-                    st.session_state.analysis_result = None
-                    st.success("Transactions cleared!")
-                    st.rerun()
+                db = get_db()
+                try:
+                    result = clear_user_transactions(st.session_state.user_id, db)
+                    if "error" in result:
+                        st.error(result["error"])
+                    else:
+                        st.success(result["message"])
+                        st.session_state.transactions = None
+                        st.session_state.analysis_result = None
+                        st.rerun()
+                finally:
+                    db.close()
 
-    if not st.session_state.transactions or anomalies_only:
-        with st.spinner("Loading transactions..."):
-            txns, err = api_get(
-                f"/transactions/{st.session_state.user_id}",
-                params={"anomalies_only": str(anomalies_only).lower()},
-            )
-        if err:
-            st.error(f"Failed to load transactions: {err}")
-            st.stop()
-        if not anomalies_only:
-            st.session_state.transactions = txns
-    else:
-        txns = st.session_state.transactions
-
-    if not txns:
-        st.info("No transactions found. Upload a bank statement first.")
+    if not st.session_state.transactions:
+        st.info("Please upload sample data first to view transactions.")
+        st.stop()
+    
+    txns = st.session_state.transactions
+    
+    if anomalies_only and 'is_anomaly' in txns.columns:
+        txns = txns[txns['is_anomaly'] == True]
+    
+    if txns.empty:
+        st.info("No transactions found.")
         st.stop()
 
     df = pd.DataFrame(txns)

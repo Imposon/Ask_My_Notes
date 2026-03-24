@@ -11,23 +11,185 @@ Make sure the FastAPI backend is running:
 import json
 import os
 import time
+import uuid
 from io import StringIO
+from datetime import datetime, timezone
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import requests
 import streamlit as st
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, JSON, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, relationship, Session
+from sqlalchemy.types import TypeDecorator, VARCHAR
 
 # Load environment variables
 load_dotenv()
 
+# Database setup
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./finance_anomaly.db")
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
-API_BASE = "http://127.0.0.1:8000"
+# Custom JSON type for SQLite
+class JSONType(TypeDecorator):
+    impl = VARCHAR
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            return json.dumps(value)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return json.loads(value)
+        return value
+
+# Database Models
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(128), nullable=False)
+    email = Column(String(256), unique=True, nullable=False)
+    google_id = Column(String(256), unique=True, nullable=True)
+    picture = Column(String(512), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
+    baseline = relationship("UserBaseline", back_populates="user", uselist=False, cascade="all, delete-orphan")
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    date = Column(DateTime, nullable=False)
+    amount = Column(Float, nullable=False)
+    merchant = Column(String(256), nullable=True)
+    description = Column(String, nullable=True)
+    category = Column(String(64), nullable=True)
+    hour = Column(Integer, nullable=True)
+    day_of_week = Column(Integer, nullable=True)
+    anomaly_score = Column(Float, nullable=True)
+    is_anomaly = Column(Boolean, default=False)
+    explanations = Column(JSONType, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", back_populates="transactions")
+
+class UserBaseline(Base):
+    __tablename__ = "user_baselines"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(36), ForeignKey("users.id"), unique=True, nullable=False)
+    category_stats = Column(JSONType, nullable=True)
+    merchant_stats = Column(JSONType, nullable=True)
+    weekly_avg_spend = Column(Float, nullable=True)
+    weekly_std_spend = Column(Float, nullable=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", back_populates="baseline")
+
+class SystemStats(Base):
+    __tablename__ = "system_stats"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    total_users = Column(Integer, default=0, nullable=False)
+    debug_logins = Column(Integer, default=0, nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+# Create tables
+Base.metadata.create_all(bind=engine)
+
+# Database helper functions
+def get_db():
+    db = SessionLocal()
+    try:
+        return db
+    finally:
+        pass  # Don't close here as we'll manage manually
+
+def init_db():
+    db = SessionLocal()
+    try:
+        # Initialize system stats if not exists
+        stats = db.query(SystemStats).first()
+        if not stats:
+            stats = SystemStats(total_users=0, debug_logins=0)
+            db.add(stats)
+            db.commit()
+    finally:
+        db.close()
+
+# Initialize database
+init_db()
+
+# Backend functions
+def create_user(name: str, email: str, db: Session):
+    existing = db.query(User).filter(User.email == email).first()
+    if existing:
+        return existing
+    
+    user = User(name=name, email=email)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    # Update total users count
+    stats = db.query(SystemStats).first()
+    if not stats:
+        stats = SystemStats(total_users=1, debug_logins=0)
+        db.add(stats)
+    else:
+        stats.total_users = db.query(User).count()
+    
+    db.commit()
+    return user
+
+def get_system_stats(db: Session):
+    stats = db.query(SystemStats).first()
+    if not stats:
+        stats = SystemStats(total_users=db.query(User).count(), debug_logins=0)
+        db.add(stats)
+        db.commit()
+        db.refresh(stats)
+    
+    return {
+        "total_users": stats.total_users,
+        "debug_logins": stats.debug_logins
+    }
+
+def increment_stats(db: Session, increment_debug: bool = False, increment_total_users: bool = False):
+    stats = db.query(SystemStats).first()
+    if not stats:
+        stats = SystemStats(
+            total_users=1 if increment_total_users else db.query(User).count(),
+            debug_logins=1 if increment_debug else 0
+        )
+        db.add(stats)
+    else:
+        if increment_debug:
+            stats.debug_logins += 1
+        if increment_total_users:
+            stats.total_users += 1
+        else:
+            stats.total_users = db.query(User).count()
+    
+    db.commit()
+    db.refresh(stats)
+    
+    return {
+        "total_users": stats.total_users,
+        "debug_logins": stats.debug_logins
+    }
 st.set_page_config(
     page_title="Vortex Finance | AI Anomaly Detector",
     layout="wide",
@@ -162,52 +324,13 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 
-def api_get(path: str, params: dict = None):
-    try:
-        r = requests.get(f"{API_BASE}{path}", params=params, timeout=15)
-        r.raise_for_status()
-        return r.json(), None
-    except requests.exceptions.ConnectionError:
-        return None, "Cannot connect to backend. Is the FastAPI server running on port 8000?"
-    except requests.exceptions.HTTPError as e:
-        try:
-            detail = e.response.json().get("detail", str(e))
-        except Exception:
-            detail = str(e)
-        return None, detail
-    except Exception as e:
-        return None, str(e)
-
-
-def api_post(path: str, json_body: dict = None, files=None, params: dict = None):
-    try:
-        r = requests.post(
-            f"{API_BASE}{path}",
-            json=json_body,
-            files=files,
-            params=params,
-            timeout=60,
-        )
-        r.raise_for_status()
-        return r.json(), None
-    except requests.exceptions.ConnectionError:
-        return None, "Cannot connect to backend. Is the FastAPI server running on port 8000?"
-    except requests.exceptions.HTTPError as e:
-        try:
-            detail = e.response.json().get("detail", str(e))
-        except Exception:
-            detail = str(e)
-        return None, detail
-    except Exception as e:
-        return None, str(e)
-
-
-def get_system_stats():
+def get_system_stats_display():
     """Get system statistics including total users"""
-    data, err = api_get("/stats")
-    if not err:
-        return data
-    return {"total_users": 0, "debug_logins": 0}
+    db = get_db()
+    try:
+        return get_system_stats(db)
+    finally:
+        db.close()
 
 
 def risk_color(score: float) -> str:
@@ -310,7 +433,7 @@ if "transactions" not in st.session_state:
 
 if not st.session_state.user_id:
     # Get system stats for display
-    stats = get_system_stats()
+    stats = get_system_stats_display()
     
     # Add total users counter in top right
     st.markdown(f"""
@@ -330,32 +453,30 @@ if not st.session_state.user_id:
         st.markdown("<h3 style='text-align: center; margin-bottom: 5px;'>Secure Login</h3>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: gray; font-size: 0.9rem; margin-bottom: 25px;'>Sign in or create an account to continue</p>", unsafe_allow_html=True)
         
-        backend_ok = True
-        
-        # Original simple form - always use this instead of OAuth
+        # Simple login form
         name = st.text_input("Full Name", placeholder="e.g. John Doe")
         email = st.text_input("Email Address", placeholder="e.g. john@example.com")
         
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Access Dashboard", use_container_width=True, disabled=not backend_ok):
+        if st.button("Access Dashboard", use_container_width=True):
             if name and email:
-                with st.spinner("Authenticating..."):
-                    result, err = api_post("/users", json_body={"name": name, "email": email})
+                db = get_db()
+                try:
+                    user = create_user(name, email, db)
                     # Increment debug login counter and total users counter
-                    if not err:
-                        api_post("/stats/increment", json_body={"increment_debug": True, "increment_total_users": True})
-                if err:
-                    st.error(err)
-                else:
-                    st.session_state.user_id = result["id"]
-                    st.session_state.user_name = result["name"]
+                    increment_stats(db, increment_debug=True, increment_total_users=True)
+                    
+                    st.session_state.user_id = user.id
+                    st.session_state.user_name = user.name
                     st.success("Access Granted! Redirecting...")
                     time.sleep(0.5)
                     st.rerun()
+                finally:
+                    db.close()
             else:
                 st.warning("All fields are required to continue.")
         
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
     
     st.stop()
 
@@ -394,7 +515,7 @@ with st.sidebar:
 
 if page == " Dashboard":
     # Get system stats for display
-    stats = get_system_stats()
+    stats = get_system_stats_display()
     
     # Add total users counter in top right
     st.markdown(f"""

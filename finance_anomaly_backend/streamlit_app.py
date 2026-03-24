@@ -86,6 +86,7 @@ def handle_oauth_callback(code):
 
 # --- Monolith Service Wrappers ---
 def api_get(path: str, params: dict = None):
+    params = params or {}
     db = SessionLocal()
     try:
         if path == "/health":
@@ -104,6 +105,7 @@ def api_get(path: str, params: dict = None):
         db.close()
 
 def api_post(path: str, json_body: dict = None, files=None, params: dict = None):
+    params = params or {}
     db = SessionLocal()
     try:
         if path == "/users":

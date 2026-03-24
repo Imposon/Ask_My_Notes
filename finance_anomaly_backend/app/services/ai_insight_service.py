@@ -8,17 +8,25 @@ from sqlalchemy import func
 
 from app.models import Transaction
 
-# Initialize OpenAI client (it will automatically pick up OPENAI_API_KEY from environment)
-# If the key is not set, it will raise an error during initialization or execution
+# Initialize Groq client (using OpenAI-compatible SDK)
+# Groq provides high-speed Llama models for free/low cost
 try:
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    groq_key = os.getenv("GROQ_API_KEY")
+    if groq_key:
+        client = OpenAI(
+            api_key=groq_key,
+            base_url="https://api.groq.com/openai/v1"
+        )
+    else:
+        # Fallback to OpenAI if Groq key isn't set yet
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 except Exception:
     client = None
 
 def generate_financial_insights(db: Session, user_id: str) -> Dict[str, Any]:
-    if not client or not os.getenv("OPENAI_API_KEY"):
+    if not client:
         return {
-            "error": "OpenAI API key is missing. Please set OPENAI_API_KEY in your environment."
+            "error": "No AI API key found. Please check your .env file."
         }
 
     # 1. Gather User Context from DB
@@ -70,10 +78,14 @@ def generate_financial_insights(db: Session, user_id: str) -> Dict[str, Any]:
     """
 
     try:
+        # Use Groq's super-fast Llama-3.3-70b/3.1-8b model
+        # llama-3.3-70b-versatile is excellent for complex reasoning
+        model_name = "llama-3.3-70b-versatile" if os.getenv("GROQ_API_KEY") else "gpt-4o"
+        
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=model_name,
             messages=[
-                {"role": "system", "content": "You output only valid JSON. No markdown blocking."},
+                {"role": "system", "content": "You are a specialized financial insight generator. You output only valid RAW JSON. No markdown backticks."},
                 {"role": "user", "content": prompt}
             ],
             response_format={ "type": "json_object" },
@@ -83,7 +95,6 @@ def generate_financial_insights(db: Session, user_id: str) -> Dict[str, Any]:
         content = response.choices[0].message.content
         result = json.loads(content)
         
-        # Ensure categories are injected in case the LLM misses them
         if "categories" not in result:
             result["categories"] = categories
             

@@ -48,35 +48,20 @@ async def upload_statement(
     df["hour"] = df["date"].dt.hour
     df["day_of_week"] = df["date"].dt.dayofweek
 
+    # 1. Reset previous data for this user (Automatic Fresh Start)
+    db.query(Transaction).filter(Transaction.user_id == user_id).delete()
+    db.commit()
+
     records: list[Transaction] = []
-    skipped = 0
-    
-    # Pre-fetch existing transaction hashes for this user to deduplicate efficiently
-    existing_txs = db.query(Transaction.date, Transaction.description, Transaction.amount).filter(
-        Transaction.user_id == user_id
-    ).all()
-    
-    # Create a set of (date, desc, amount) tuples for fast lookup
-    # We use .date() or timestamp comparison depending on frequency, but tuple is safest.
-    existing_set = { (tx.date.replace(tzinfo=None), tx.description, float(tx.amount)) for tx in existing_txs }
-
     for _, row in df.iterrows():
-        # Prepare current row tuple for comparison
         dt = row["date"].to_pydatetime().replace(tzinfo=None)
-        desc = row["description"]
-        amt = float(row["amount"])
-        
-        if (dt, desc, amt) in existing_set:
-            skipped += 1
-            continue
-
         records.append(
             Transaction(
                 user_id=user_id,
                 date=dt,
-                amount=amt,
+                amount=float(row["amount"]),
                 merchant=row["merchant"],
-                description=desc,
+                description=row["description"],
                 category=row["category"],
                 hour=int(row["hour"]),
                 day_of_week=int(row["day_of_week"]),
@@ -90,5 +75,5 @@ async def upload_statement(
     return UploadResponse(
         user_id=user_id,
         transactions_parsed=len(records),
-        message=f"{len(records)} new transactions saved. {skipped} duplicates skipped."
+        message=f"Success! Previous data reset. {len(records)} transactions imported."
     )

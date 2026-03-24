@@ -1,16 +1,19 @@
-"""
-Keyword-based transaction categoriser.
-
-Easily extendable: just add keywords to CATEGORY_KEYWORDS.
-"""
-
 import os
 import json
 import pandas as pd
 from openai import OpenAI
 
+# Use Groq for categorization for free/cheap high-speed Llama models
 try:
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    groq_key = os.getenv("GROQ_API_KEY")
+    if groq_key:
+        client = OpenAI(
+            api_key=groq_key,
+            base_url="https://api.groq.com/openai/v1"
+        )
+    else:
+        # Fallback to OpenAI if Groq key isn't set yet
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 except:
     client = None
 
@@ -71,17 +74,19 @@ def categorize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df["category"] = df["description"].apply(categorize)
     
     # LLM Fallback for "Others" if API key is present
-    if client and os.getenv("OPENAI_API_KEY"):
+    if client:
         others_mask = df["category"] == "Others"
         unknown_desc = df.loc[others_mask, "description"].unique().tolist()
         
         if unknown_desc:
+            # We use Llama-3.1-8b-instant for fast, low-latency categorization
+            model_name = "llama-3.1-8b-instant" if os.getenv("GROQ_API_KEY") else "gpt-4o-mini"
             # Categorize only unique unknown descriptions to save tokens
-            prompt = f"Categorize these merchants: {json.dumps(unknown_desc[:20])}. Options: {', '.join(CATEGORY_KEYWORDS.keys())}. Return JSON: {{\"mapping\": {{\"merchant\": \"category\"}}}}"
+            prompt = f"Categorize these merchants: {json.dumps(unknown_desc[:20])}. Options: {', '.join(CATEGORY_KEYWORDS.keys())}. Return RAW JSON mapping: {{\"mapping\": {{\"merchant\": \"category\"}}}}"
             try:
                 resp = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "system", "content": "You are a financial categorizer. Respond only with JSON mapping."},
+                    model=model_name,
+                    messages=[{"role": "system", "content": "You are a financial categorizer. Output ONLY a raw JSON mapping."},
                               {"role": "user", "content": prompt}],
                     response_format={ "type": "json_object" }
                 )

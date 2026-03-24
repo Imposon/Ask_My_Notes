@@ -501,53 +501,7 @@ elif page == " Upload Statement":
     st.markdown(f"Uploading for user: **{st.session_state.user_name}**")
     st.markdown("---")
 
-    tab_csv, tab_pdf, tab_sample = st.tabs([" Upload CSV", " Upload PDF", " Use Sample Data"])
-
-    with tab_csv:
-        st.markdown("""
-        **CSV Format Required:**
-        ```
-        date,description,amount
-        2025-01-02 10:15:00,Swiggy Food Delivery,450
-        2025-01-03 08:30:00,Uber Ride to Office,280
-        ```
-        Column aliases supported: `date/Date/DATE`, `description/desc/narration`, `amount/Amount/debit`
-        """)
-        uploaded_csv = st.file_uploader("Choose CSV file", type=["csv"], key="csv_upload")
-        if uploaded_csv and st.button(" Upload CSV", use_container_width=True):
-            with st.spinner("Parsing and storing transactions..."):
-                data, err = api_post(
-                    "/upload",
-                    files={"file": (uploaded_csv.name, uploaded_csv.getvalue(), "text/csv")},
-                    params={"user_id": st.session_state.user_id},
-                )
-            if err:
-                st.error(f"Upload failed: {err}")
-            else:
-                st.success(f" {data['transactions_parsed']} transactions uploaded successfully!")
-                st.json(data)
-
-    with tab_pdf:
-        st.markdown("""
-        **PDF Bank Statements** are supported via:
-        1. Table extraction (for structured PDFs)
-        2. Regex pattern fallback for unstructured layouts
-
-        The parser looks for rows matching: `date  description  amount`
-        """)
-        uploaded_pdf = st.file_uploader("Choose PDF file", type=["pdf"], key="pdf_upload")
-        if uploaded_pdf and st.button(" Upload PDF", use_container_width=True):
-            with st.spinner("Extracting and parsing PDF..."):
-                data, err = api_post(
-                    "/upload",
-                    files={"file": (uploaded_pdf.name, uploaded_pdf.getvalue(), "application/pdf")},
-                    params={"user_id": st.session_state.user_id},
-                )
-            if err:
-                st.error(f"Upload failed: {err}")
-            else:
-                st.success(f" {data['transactions_parsed']} transactions uploaded!")
-                st.json(data)
+    tab_sample, tab_pdf, tab_csv = st.tabs([" Use Sample Data", " Upload PDF", " Upload CSV"])
 
     with tab_sample:
         st.markdown("Load a built-in realistic 30-transaction sample to test the pipeline instantly.")
@@ -598,6 +552,52 @@ elif page == " Upload Statement":
             else:
                 st.success(f" {data['transactions_parsed']} sample transactions uploaded! Now go to **Run Analysis**.")
                 st.session_state.transactions = None  # Reset cache
+
+    with tab_pdf:
+        st.markdown("""
+        **PDF Bank Statements** are supported via:
+        1. Table extraction (for structured PDFs)
+        2. Regex pattern fallback for unstructured layouts
+
+        The parser looks for rows matching: `date  description  amount`
+        """)
+        uploaded_pdf = st.file_uploader("Choose PDF file", type=["pdf"], key="pdf_upload")
+        if uploaded_pdf and st.button(" Upload PDF", use_container_width=True):
+            with st.spinner("Extracting and parsing PDF..."):
+                data, err = api_post(
+                    "/upload",
+                    files={"file": (uploaded_pdf.name, uploaded_pdf.getvalue(), "application/pdf")},
+                    params={"user_id": st.session_state.user_id},
+                )
+            if err:
+                st.error(f"Upload failed: {err}")
+            else:
+                st.success(f" {data['transactions_parsed']} transactions uploaded!")
+                st.json(data)
+
+    with tab_csv:
+        st.markdown("""
+        **CSV Format Required:**
+        ```
+        date,description,amount
+        2025-01-02 10:15:00,Swiggy Food Delivery,450
+        2025-01-03 08:30:00,Uber Ride to Office,280
+        ```
+        Column aliases supported: `date/Date/DATE`, `description/desc/narration`, `amount/Amount/debit`
+        """)
+        uploaded_csv = st.file_uploader("Choose CSV file", type=["csv"], key="csv_upload")
+        if uploaded_csv and st.button(" Upload CSV", use_container_width=True):
+            with st.spinner("Parsing and storing transactions..."):
+                data, err = api_post(
+                    "/upload",
+                    files={"file": (uploaded_csv.name, uploaded_csv.getvalue(), "text/csv")},
+                    params={"user_id": st.session_state.user_id},
+                )
+            if err:
+                st.error(f"Upload failed: {err}")
+            else:
+                st.success(f" {data['transactions_parsed']} transactions uploaded successfully!")
+                st.json(data)
 
 
 elif page == " Run Analysis":
@@ -859,14 +859,16 @@ elif page == " Transactions":
         disp_show["date"] = disp_show["date"].astype(str).str[:19]
 
     def highlight_anomaly(row):
-        if row.get("is_anomaly", False):
-            return ["background-color: #fff0f0"] * len(row)
-        return [""] * len(row)
+        is_anom = row.get("is_anomaly")
+        # Handle cases where is_anomaly might be a string or boolean
+        if str(is_anom).lower() == "true":
+            return ["background-color: rgba(255, 75, 75, 0.25); color: #ff4b4b; font-weight: 700;"] * len(row)
+        return ["background-color: #0e1117; color: rgba(255,255,255,0.8);"] * len(row)
 
     st.dataframe(
         disp_show.style.apply(highlight_anomaly, axis=1),
         use_container_width=True,
-        height=500,
+        height=600,
     )
 
     st.caption(f"Showing {len(disp_show):,} of {len(df):,} transactions. Anomalies highlighted in red.")
